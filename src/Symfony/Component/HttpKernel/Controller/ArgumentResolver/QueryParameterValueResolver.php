@@ -16,6 +16,7 @@ use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\HttpKernel\Controller\ValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\Uid\AbstractUid;
 
 /**
  * Resolve arguments of type: array, string, int, float, bool, \BackedEnum from query parameters.
@@ -72,6 +73,12 @@ final class QueryParameterValueResolver implements ValueResolverInterface
         } else {
             $options['flags'] |= \FILTER_REQUIRE_SCALAR;
         }
+        
+        $uidType = null;
+        if (is_subclass_of($type, AbstractUid::class)) {
+            $uidType = $type;
+            $type = 'uid';
+        }
 
         $enumType = null;
         $filter = match ($type) {
@@ -80,6 +87,7 @@ final class QueryParameterValueResolver implements ValueResolverInterface
             'int' => \FILTER_VALIDATE_INT,
             'float' => \FILTER_VALIDATE_FLOAT,
             'bool' => \FILTER_VALIDATE_BOOL,
+            'uid' => \FILTER_DEFAULT,
             default => match ($enumType = is_subclass_of($type, \BackedEnum::class) ? (new \ReflectionEnum($type))->getBackingType()->getName() : null) {
                 'int' => \FILTER_VALIDATE_INT,
                 'string' => \FILTER_DEFAULT,
@@ -103,6 +111,10 @@ final class QueryParameterValueResolver implements ValueResolverInterface
             };
 
             $value = \is_array($value) ? array_map($enumFrom, $value) : $enumFrom($value);
+        }
+        
+        if (null !== $uidType) {
+            $value = $uidType::fromString($value);
         }
 
         if (null === $value && !($attribute->flags & \FILTER_NULL_ON_FAILURE)) {
