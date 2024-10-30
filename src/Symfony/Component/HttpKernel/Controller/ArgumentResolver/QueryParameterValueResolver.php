@@ -73,7 +73,7 @@ final class QueryParameterValueResolver implements ValueResolverInterface
         } else {
             $options['flags'] |= \FILTER_REQUIRE_SCALAR;
         }
-        
+
         $uidType = null;
         if (is_subclass_of($type, AbstractUid::class)) {
             $uidType = $type;
@@ -112,7 +112,7 @@ final class QueryParameterValueResolver implements ValueResolverInterface
 
             $value = \is_array($value) ? array_map($enumFrom, $value) : $enumFrom($value);
         }
-        
+
         if (null !== $uidType) {
             $value = $uidType::fromString($value);
         }
