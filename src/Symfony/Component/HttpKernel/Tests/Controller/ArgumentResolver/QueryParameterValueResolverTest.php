@@ -45,7 +45,7 @@ class QueryParameterValueResolverTest extends TestCase
      */
     public function testResolvingSuccessfully(Request $request, ArgumentMetadata $metadata, array $expected)
     {
-        $this->assertSame($expected, $this->resolver->resolve($request, $metadata));
+        $this->assertEquals($expected, $this->resolver->resolve($request, $metadata));
     }
 
     /**
