@@ -114,7 +114,7 @@ final class QueryParameterValueResolver implements ValueResolverInterface
         }
 
         if (null !== $uidType) {
-            $value = $uidType::fromString($value);
+            $value = \is_array($value) ? array_map([$uidType, 'fromString'], $value) : $uidType::fromString($value);
         }
 
         if (null === $value && !($attribute->flags & \FILTER_NULL_ON_FAILURE)) {
