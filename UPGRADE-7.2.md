@@ -8,11 +8,40 @@ Read more about this in the [Symfony documentation](https://symfony.com/doc/7.2/
 
 If you're upgrading from a version below 7.1, follow the [7.1 upgrade guide](UPGRADE-7.1.md) first.
 
+Table of Contents
+-----------------
+
+Bundles
+
+ * [FrameworkBundle](#FrameworkBundle)
+
+Bridges
+
+ * [TwigBridge](#TwigBridge)
+
+Components
+
+ * [Cache](#Cache)
+ * [Console](#Console)
+ * [DependencyInjection](#DependencyInjection)
+ * [Form](#Form)
+ * [HttpFoundation](#HttpFoundation)
+ * [Ldap](#Ldap)
+ * [Lock](#Lock)
+ * [Mailer](#Mailer)
+ * [Notifier](#Notifier)
+ * [Routing](#Routing)
+ * [Security](#Security)
+ * [Serializer](#Serializer)
+ * [Translation](#Translation)
+ * [Webhook](#Webhook)
+ * [Yaml](#Yaml)
+
 Cache
 -----
 
- * `igbinary_serialize()` is not used by default when the igbinary extension is installed
- * Deprecate making `cache.app` adapter taggable, use the `cache.app.taggable` adapter instead
+ * `igbinary_serialize()` is no longer used instead of `serialize()` when the igbinary extension is installed, due to behavior
+   incompatibilities between the two (performance might be impacted)
 
 Console
 -------
@@ -24,7 +53,27 @@ Console
 DependencyInjection
 -------------------
 
- * Deprecate `!tagged` tag, use `!tagged_iterator` instead
+ * Deprecate `!tagged` Yaml tag, use `!tagged_iterator` instead
+
+   *Before*
+   ```yaml
+   services:
+       App\Handler:
+           tags: ['app.handler']
+
+       App\HandlerCollection:
+           arguments: [!tagged app.handler]
+   ```
+
+   *After*
+   ```yaml
+   services:
+       App\Handler:
+           tags: ['app.handler']
+
+       App\HandlerCollection:
+           arguments: [!tagged_iterator app.handler]
+   ```
 
 Form
 ----
@@ -35,7 +84,8 @@ FrameworkBundle
 ---------------
 
  * [BC BREAK] The `secrets:decrypt-to-local` command terminates with a non-zero exit code when a secret could not be read
- * Deprecate `session.sid_length` and `session.sid_bits_per_character` config options
+ * Deprecate making `cache.app` adapter taggable, use the `cache.app.taggable` adapter instead
+ * Deprecate `session.sid_length` and `session.sid_bits_per_character` config options, following the deprecation of these options in PHP 8.4.
 
 HttpFoundation
 --------------
@@ -45,8 +95,12 @@ HttpFoundation
 Ldap
 ----
 
- * Add methods for `saslBind()` and `whoami()` to `ConnectionInterface` and `LdapInterface`
- * Deprecate the `sizeLimit` option of `AbstractQuery`
+ * Deprecate the `sizeLimit` option of `AbstractQuery`, the option is unused
+
+Lock
+----
+
+ * `RedisStore` uses `EVALSHA` over `EVAL` when evaluating LUA scripts
 
 Mailer
 ------
@@ -56,11 +110,6 @@ Mailer
   The `testIncompleteDsnException()` test is no longer provided by default. If you make use of it by implementing the `incompleteDsnProvider()` data providers,
   you now need to use the `IncompleteDsnTestTrait`.
 
-Messenger
----------
-
- * Add `getRetryDelay()` method to `RecoverableExceptionInterface`
-
 Notifier
 --------
 
@@ -69,52 +118,55 @@ Notifier
    The `testIncompleteDsnException()` and `testMissingRequiredOptionException()` tests are no longer provided by default. If you make use of them (i.e. by implementing the
    `incompleteDsnProvider()` or `missingRequiredOptionProvider()` data providers), you now need to use the `IncompleteDsnTestTrait` or `MissingRequiredOptionTestTrait` respectively.
 
+Routing
+-------
+
+ * Deprecate the `AttributeClassLoader::$routeAnnotationClass` property, use `AttributeClassLoader::setRouteAttributeClass()` instead
+
 Security
 --------
 
- * Add `$token` argument to `UserCheckerInterface::checkPostAuth()`
- * Deprecate argument `$secret` of `RememberMeToken` and `RememberMeAuthenticator`
+ * Deprecate argument `$secret` of `RememberMeToken` and `RememberMeAuthenticator`, the argument is unused
  * Deprecate passing an empty string as `$userIdentifier` argument to `UserBadge` constructor
  * Deprecate returning an empty string in `UserInterface::getUserIdentifier()`
 
 Serializer
 ----------
 
- * Deprecate the `csv_escape_char` context option of `CsvEncoder` and the `CsvEncoder::ESCAPE_CHAR_KEY` constant
- * Deprecate `CsvEncoderContextBuilder::withEscapeChar()` method
+ * Deprecate the `csv_escape_char` context option of `CsvEncoder`, the `CsvEncoder::ESCAPE_CHAR_KEY` constant
+   and the `CsvEncoderContextBuilder::withEscapeChar()` method, following its deprecation in PHP 8.4
  * Deprecate `AdvancedNameConverterInterface`, use `NameConverterInterface` instead
-
-String
-------
-
- * `truncate` method now also accept `TruncateMode` enum instead of a boolean:
-   * `TruncateMode::Char` is equivalent to `true` value ;
-   * `TruncateMode::WordAfter` is equivalent to `false` value ;
-   * `TruncateMode::WordBefore` is a new mode that will cut the sentence on the last word before the limit is reached.
 
 Translation
 -----------
 
- * Deprecate `ProviderFactoryTestCase`, extend `AbstractTransportFactoryTestCase` instead
+ * Deprecate `ProviderFactoryTestCase`, extend `AbstractProviderFactoryTestCase` instead
 
    The `testIncompleteDsnException()` test is no longer provided by default. If you make use of it by implementing the `incompleteDsnProvider()` data providers,
    you now need to use the `IncompleteDsnTestTrait`.
 
- * Deprecate passing an escape character to `CsvFileLoader::setCsvControl()`
+ * Deprecate passing an escape character to `CsvFileLoader::setCsvControl()`, following its deprecation in PHP 8.4
 
 TwigBridge
 ----------
 
  * Deprecate passing a tag to the constructor of `FormThemeNode`
 
+TypeInfo
+--------
+
+ * Rename `Type::isA()` to `Type::isIdentifiedBy()` and `Type::is()` to `Type::isSatisfiedBy()`
+ * Remove `Type::__call()`
+ * Remove `Type::getBaseType()`, use `WrappingTypeInterface::getWrappedType()` instead
+ * Remove `Type::asNonNullable()`, use `NullableType::getWrappedType()` instead
+ * Remove `CompositeTypeTrait`
+
 Webhook
 -------
 
- * [BC BREAK] `RequestParserInterface::parse()` return type changed from
-   `?RemoteEvent` to `RemoteEvent|array<RemoteEvent>|null`. Classes already
-   implementing this interface are unaffected but consumers of this method
-   will need to be updated to handle the new return type. Projects relying on
-   the `WebhookController` of the component are not affected by the BC break
+ * [BC BREAK] `RequestParserInterface::parse()` return type changed from `RemoteEvent|null` to `RemoteEvent|array<RemoteEvent>|null`.
+   Projects relying on the `WebhookController` of the component are not affected by the BC break. Classes already implementing
+   this interface are unaffected. Custom callers of this method will need to be updated to handle the extra array return type.
 
 Yaml
 ----

@@ -13,7 +13,6 @@ namespace Symfony\Bundle\FrameworkBundle\Tests\DependencyInjection;
 
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerAwareInterface;
-use Symfony\Bridge\PhpUnit\ExpectUserDeprecationMessageTrait;
 use Symfony\Bundle\FrameworkBundle\DependencyInjection\FrameworkExtension;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Tests\Fixtures\Messenger\DummyMessage;
@@ -96,8 +95,6 @@ use Symfony\Contracts\Cache\TagAwareCacheInterface;
 
 abstract class FrameworkExtensionTestCase extends TestCase
 {
-    use ExpectUserDeprecationMessageTrait;
-
     private static array $containerCache = [];
 
     abstract protected function loadFromFile(ContainerBuilder $container, $file);
@@ -1857,16 +1854,6 @@ abstract class FrameworkExtensionTestCase extends TestCase
     }
 
     /**
-     * @group legacy
-     */
-    public function testTaggableCacheAppIsDeprecated()
-    {
-        $this->expectUserDeprecationMessage('Since symfony/framework-bundle 7.2: Using the "tags" option with the "cache.app" adapter is deprecated. You can use the "cache.app.taggable" adapter instead (aliased to the TagAwareCacheInterface for autowiring).');
-
-        $this->createContainerFromFile('cache_cacheapp_tagaware');
-    }
-
-    /**
      * @dataProvider appRedisTagAwareConfigProvider
      */
     public function testCacheTaggableTagAppliedToRedisAwareAppPool(string $configFile)
@@ -1963,8 +1950,12 @@ abstract class FrameworkExtensionTestCase extends TestCase
         ];
         $this->assertSame([$defaultOptions, 4], $container->getDefinition('http_client.transport')->getArguments());
 
+        $this->assertTrue($container->getDefinition('http_client')->hasTag('kernel.reset'));
+
         $this->assertTrue($container->hasDefinition('foo'), 'should have the "foo" service.');
-        $this->assertSame(ScopingHttpClient::class, $container->getDefinition('foo')->getClass());
+        $definition = $container->getDefinition('foo');
+        $this->assertSame(ScopingHttpClient::class, $definition->getClass());
+        $this->assertTrue($definition->hasTag('kernel.reset'));
     }
 
     public function testScopedHttpClientWithoutQueryOption()

@@ -1,5 +1,5 @@
 # Run these steps to update this file:
-sed -i 's/ *"\*\*\/Tests\/",\?//' composer.json
+sed -i 's/ *"\*\*\/Tests\/",//' composer.json
 composer u -o
 SYMFONY_PATCH_TYPE_DECLARATIONS='force=2&php=8.1' php .github/patch-types.php
 head=$(sed '/^diff /Q' .github/expected-missing-return-types.diff)
@@ -457,18 +457,18 @@ diff --git a/src/Symfony/Component/HttpKernel/KernelInterface.php b/src/Symfony/
 diff --git a/src/Symfony/Component/Routing/Loader/AttributeClassLoader.php b/src/Symfony/Component/Routing/Loader/AttributeClassLoader.php
 --- a/src/Symfony/Component/Routing/Loader/AttributeClassLoader.php
 +++ b/src/Symfony/Component/Routing/Loader/AttributeClassLoader.php
-@@ -236,5 +236,5 @@ abstract class AttributeClassLoader implements LoaderInterface
+@@ -253,5 +253,5 @@ abstract class AttributeClassLoader implements LoaderInterface
       * @return string
       */
 -    protected function getDefaultRouteName(\ReflectionClass $class, \ReflectionMethod $method)
 +    protected function getDefaultRouteName(\ReflectionClass $class, \ReflectionMethod $method): string
      {
          $name = str_replace('\\', '_', $class->name).'_'.$method->name;
-@@ -335,5 +335,5 @@ abstract class AttributeClassLoader implements LoaderInterface
+@@ -355,5 +355,5 @@ abstract class AttributeClassLoader implements LoaderInterface
       * @return void
       */
--    abstract protected function configureRoute(Route $route, \ReflectionClass $class, \ReflectionMethod $method, object $annot);
-+    abstract protected function configureRoute(Route $route, \ReflectionClass $class, \ReflectionMethod $method, object $annot): void;
+-    abstract protected function configureRoute(Route $route, \ReflectionClass $class, \ReflectionMethod $method, object $attr);
++    abstract protected function configureRoute(Route $route, \ReflectionClass $class, \ReflectionMethod $method, object $attr): void;
  
      /**
 diff --git a/src/Symfony/Component/Security/Core/Authentication/RememberMe/TokenProviderInterface.php b/src/Symfony/Component/Security/Core/Authentication/RememberMe/TokenProviderInterface.php

@@ -100,6 +100,20 @@ class SameOriginCsrfTokenManagerTest extends TestCase
         $this->assertSame(1 << 8, $request->attributes->get('csrf-token'));
     }
 
+    public function testValidRefererInvalidOrigin()
+    {
+        $request = new Request();
+        $request->headers->set('Origin', 'http://localhost:1234');
+        $request->headers->set('Referer', $request->getSchemeAndHttpHost());
+        $this->requestStack->push($request);
+
+        $token = new CsrfToken('test_token', str_repeat('a', 24));
+
+        $this->logger->expects($this->once())->method('debug')->with('CSRF validation accepted using origin info.');
+        $this->assertTrue($this->csrfTokenManager->isTokenValid($token));
+        $this->assertSame(1 << 8, $request->attributes->get('csrf-token'));
+    }
+
     public function testValidOriginAfterDoubleSubmit()
     {
         $session = $this->createMock(Session::class);
@@ -207,14 +221,29 @@ class SameOriginCsrfTokenManagerTest extends TestCase
         $this->assertTrue($response->headers->has('Set-Cookie'));
     }
 
-    public function testPersistStrategyWithSession()
+    public function testPersistStrategyWithStartedSession()
     {
         $session = $this->createMock(Session::class);
+        $session->method('isStarted')->willReturn(true);
+
         $request = new Request();
         $request->setSession($session);
         $request->attributes->set('csrf-token', 2 << 8);
 
         $session->expects($this->once())->method('set')->with('csrf-token', 2 << 8);
+
+        $this->csrfTokenManager->persistStrategy($request);
+    }
+
+    public function testPersistStrategyWithSessionNotStarted()
+    {
+        $session = $this->createMock(Session::class);
+
+        $request = new Request();
+        $request->setSession($session);
+        $request->attributes->set('csrf-token', 2 << 8);
+
+        $session->expects($this->never())->method('set');
 
         $this->csrfTokenManager->persistStrategy($request);
     }

@@ -140,13 +140,13 @@ class ContainerDebugCommandTest extends AbstractWebTestCase
         $tester->run(['command' => 'debug:container', '--tag' => 'kernel.'], ['decorated' => false]);
 
         $this->assertStringContainsString('Select one of the following tags to display its information', $tester->getDisplay());
-        $this->assertStringContainsString('[0] kernel.event_subscriber', $tester->getDisplay());
-        $this->assertStringContainsString('[1] kernel.locale_aware', $tester->getDisplay());
-        $this->assertStringContainsString('[2] kernel.cache_warmer', $tester->getDisplay());
+        $this->assertStringContainsString('[0] kernel.cache_clearer', $tester->getDisplay());
+        $this->assertStringContainsString('[1] kernel.cache_warmer', $tester->getDisplay());
+        $this->assertStringContainsString('[2] kernel.event_subscriber', $tester->getDisplay());
         $this->assertStringContainsString('[3] kernel.fragment_renderer', $tester->getDisplay());
-        $this->assertStringContainsString('[4] kernel.reset', $tester->getDisplay());
-        $this->assertStringContainsString('[5] kernel.cache_clearer', $tester->getDisplay());
-        $this->assertStringContainsString('Symfony Container Services Tagged with "kernel.event_subscriber" Tag', $tester->getDisplay());
+        $this->assertStringContainsString('[4] kernel.locale_aware', $tester->getDisplay());
+        $this->assertStringContainsString('[5] kernel.reset', $tester->getDisplay());
+        $this->assertStringContainsString('Symfony Container Services Tagged with "kernel.cache_clearer" Tag', $tester->getDisplay());
     }
 
     public function testDescribeEnvVars()

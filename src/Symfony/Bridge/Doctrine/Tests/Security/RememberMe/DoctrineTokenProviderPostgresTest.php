@@ -10,6 +10,7 @@ use Symfony\Bridge\Doctrine\Security\RememberMe\DoctrineTokenProvider;
 
 /**
  * @requires extension pdo_pgsql
+ *
  * @group integration
  */
 class DoctrineTokenProviderPostgresTest extends DoctrineTokenProviderTest
@@ -21,7 +22,7 @@ class DoctrineTokenProviderPostgresTest extends DoctrineTokenProviderTest
         }
     }
 
-    protected function bootstrapProvider()
+    protected function bootstrapProvider(): DoctrineTokenProvider
     {
         $config = class_exists(ORMSetup::class) ? ORMSetup::createConfiguration(true) : new Configuration();
         if (class_exists(DefaultSchemaManagerFactory::class)) {

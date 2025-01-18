@@ -10,7 +10,7 @@ CHANGELOG
    you now need to use the `IncompleteDsnTestTrait`.
 
  * Make `TransportFactoryTestCase` compatible with PHPUnit 10+
- * Support unicode email addresses such as "dømi@dømi.fo"
+ * Support unicode email addresses such as "dømi@dømi.example"
 
 7.1
 ---

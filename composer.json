@@ -146,7 +146,7 @@
         "php-http/discovery": "^1.15",
         "php-http/httplug": "^1.0|^2.0",
         "phpdocumentor/reflection-docblock": "^5.2",
-        "phpstan/phpdoc-parser": "^1.0",
+        "phpstan/phpdoc-parser": "^1.0|^2.0",
         "predis/predis": "^1.1|^2.0",
         "psr/http-client": "^1.0",
         "psr/simple-cache": "^1.0|^2.0|^3.0",

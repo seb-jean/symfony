@@ -15,6 +15,7 @@ use Symfony\Bridge\Twig\Node\TransDefaultDomainNode;
 use Symfony\Bridge\Twig\Node\TransNode;
 use Twig\Environment;
 use Twig\Node\BlockNode;
+use Twig\Node\EmptyNode;
 use Twig\Node\Expression\ArrayExpression;
 use Twig\Node\Expression\AssignNameExpression;
 use Twig\Node\Expression\ConstantExpression;
@@ -33,8 +34,6 @@ use Twig\NodeVisitor\NodeVisitorInterface;
  */
 final class TranslationDefaultDomainNodeVisitor implements NodeVisitorInterface
 {
-    private const INTERNAL_VAR_NAME = '__internal_trans_default_domain';
-
     private Scope $scope;
 
     public function __construct()
@@ -55,12 +54,21 @@ final class TranslationDefaultDomainNodeVisitor implements NodeVisitorInterface
                 return $node;
             }
 
-            $name = class_exists(AssignContextVariable::class) ? new AssignContextVariable(self::INTERNAL_VAR_NAME, $node->getTemplateLine()) : new AssignNameExpression(self::INTERNAL_VAR_NAME, $node->getTemplateLine());
-            $this->scope->set('domain', class_exists(ContextVariable::class) ? new ContextVariable(self::INTERNAL_VAR_NAME, $node->getTemplateLine()) : new NameExpression(self::INTERNAL_VAR_NAME, $node->getTemplateLine()));
+            if (null === $templateName = $node->getTemplateName()) {
+                throw new \LogicException('Cannot traverse a node without a template name.');
+            }
+
+            $var = '__internal_trans_default_domain'.hash('xxh128', $templateName);
 
             if (class_exists(Nodes::class)) {
+                $name = new AssignContextVariable($var, $node->getTemplateLine());
+                $this->scope->set('domain', new ContextVariable($var, $node->getTemplateLine()));
+
                 return new SetNode(false, new Nodes([$name]), new Nodes([$node->getNode('expr')]), $node->getTemplateLine());
             }
+
+            $name = new AssignNameExpression($var, $node->getTemplateLine());
+            $this->scope->set('domain', new NameExpression($var, $node->getTemplateLine()));
 
             return new SetNode(false, new Node([$name]), new Node([$node->getNode('expr')]), $node->getTemplateLine());
         }
@@ -71,6 +79,12 @@ final class TranslationDefaultDomainNodeVisitor implements NodeVisitorInterface
 
         if ($node instanceof FilterExpression && 'trans' === ($node->hasAttribute('twig_callable') ? $node->getAttribute('twig_callable')->getName() : $node->getNode('filter')->getAttribute('value'))) {
             $arguments = $node->getNode('arguments');
+
+            if ($arguments instanceof EmptyNode) {
+                $arguments = new Nodes();
+                $node->setNode('arguments', $arguments);
+            }
+
             if ($this->isNamedArguments($arguments)) {
                 if (!$arguments->hasNode('domain') && !$arguments->hasNode(1)) {
                     $arguments->setNode('domain', $this->scope->get('domain'));

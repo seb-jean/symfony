@@ -1469,7 +1469,12 @@ class ProcessTest extends TestCase
     {
         $p = new Process(['/usr/bin/php']);
 
-        $expected = '\\' === \DIRECTORY_SEPARATOR ? '"/usr/bin/php"' : "'/usr/bin/php'";
+        $expected = '\\' === \DIRECTORY_SEPARATOR ? '/usr/bin/php' : "'/usr/bin/php'";
+        $this->assertSame($expected, $p->getCommandLine());
+
+        $p = new Process(['cd', '/d']);
+
+        $expected = '\\' === \DIRECTORY_SEPARATOR ? 'cd /d' : "'cd' '/d'";
         $this->assertSame($expected, $p->getCommandLine());
     }
 
@@ -1685,6 +1690,17 @@ class ProcessTest extends TestCase
         $process->stop(timeout: 0.2);
 
         $this->assertSame(\SIGTERM, $process->getTermSignal());
+    }
+
+    public function testPathResolutionOnWindows()
+    {
+        if ('\\' !== \DIRECTORY_SEPARATOR) {
+            $this->markTestSkipped('This test is for Windows platform only');
+        }
+
+        $process = $this->getProcess(['where']);
+
+        $this->assertSame('C:\\Windows\\system32\\where.EXE', $process->getCommandLine());
     }
 
     private function getProcess(string|array $commandline, ?string $cwd = null, ?array $env = null, mixed $input = null, ?int $timeout = 60): Process

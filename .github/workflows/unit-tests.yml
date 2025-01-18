@@ -33,6 +33,7 @@ jobs:
             mode: low-deps
           - php: '8.3'
           - php: '8.4'
+          - php: '8.5'
             #mode: experimental
       fail-fast: false
 

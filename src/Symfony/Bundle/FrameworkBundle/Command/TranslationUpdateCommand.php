@@ -62,6 +62,10 @@ class TranslationUpdateCommand extends Command
         private array $enabledLocales = [],
     ) {
         parent::__construct();
+
+        if (!method_exists($writer, 'getFormats')) {
+            throw new \InvalidArgumentException(sprintf('The writer class "%s" does not implement the "getFormats()" method.', $writer::class));
+        }
     }
 
     protected function configure(): void

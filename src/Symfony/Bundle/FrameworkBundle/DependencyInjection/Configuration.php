@@ -211,7 +211,7 @@ class Configuration implements ConfigurationInterface
                     ->addDefaultsIfNotSet()
                     ->fixXmlConfig('stateless_token_id')
                     ->children()
-                        // defaults to framework.csrf_protection.stateless_token_ids || framework.session.enabled && !class_exists(FullStack::class) && interface_exists(CsrfTokenManagerInterface::class)
+                        // defaults to (framework.csrf_protection.stateless_token_ids || framework.session.enabled) && !class_exists(FullStack::class) && interface_exists(CsrfTokenManagerInterface::class)
                         ->scalarNode('enabled')->defaultNull()->end()
                         ->arrayNode('stateless_token_ids')
                             ->scalarPrototype()->end()

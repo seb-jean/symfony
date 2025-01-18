@@ -451,6 +451,9 @@ class BinaryFileResponseTest extends ResponseTestCase
         $this->assertEquals('attachment; filename=temp', $response->headers->get('Content-Disposition'));
 
         ob_start();
+        $response->setAutoLastModified();
+        $response->prepare(new Request());
+        $this->assertSame('7', $response->headers->get('Content-Length'));
         $response->sendContent();
         $string = ob_get_clean();
         $this->assertSame('foo,bar', $string);
@@ -464,5 +467,16 @@ class BinaryFileResponseTest extends ResponseTestCase
         $this->expectExceptionMessage('The chunk size of a BinaryFileResponse cannot be less than 1.');
 
         $response->setChunkSize(0);
+    }
+
+    public function testCreateFromTemporaryFileWithoutMimeType()
+    {
+        $file = new \SplTempFileObject();
+        $file->fwrite('foo,bar');
+
+        $response = new BinaryFileResponse($file);
+        $response->prepare(new Request());
+
+        $this->assertSame('application/octet-stream', $response->headers->get('Content-Type'));
     }
 }

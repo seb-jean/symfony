@@ -120,6 +120,8 @@ use Symfony\Component\Mime\Header\Headers;
 use Symfony\Component\Mime\MimeTypeGuesserInterface;
 use Symfony\Component\Mime\MimeTypes;
 use Symfony\Component\Notifier\Bridge as NotifierBridge;
+use Symfony\Component\Notifier\Bridge\FakeChat\FakeChatTransportFactory;
+use Symfony\Component\Notifier\Bridge\FakeSms\FakeSmsTransportFactory;
 use Symfony\Component\Notifier\ChatterInterface;
 use Symfony\Component\Notifier\Notifier;
 use Symfony\Component\Notifier\Recipient\Recipient;
@@ -219,6 +221,10 @@ class FrameworkExtension extends Extension
             throw new \LogicException('Requiring the "symfony/symfony" package is unsupported; replace it with standalone components instead.');
         }
 
+        if (!ContainerBuilder::willBeAvailable('symfony/validator', Validation::class, ['symfony/framework-bundle', 'symfony/form'])) {
+            $container->setParameter('validator.translation_domain', 'validators');
+        }
+
         $loader->load('web.php');
         $loader->load('services.php');
         $loader->load('fragment_renderer.php');
@@ -306,10 +312,17 @@ class FrameworkExtension extends Extension
             }
         }
 
+        $emptySecretHint = '"framework.secret" option';
         if (isset($config['secret'])) {
             $container->setParameter('kernel.secret', $config['secret']);
+            $usedEnvs = [];
+            $container->resolveEnvPlaceholders($config['secret'], null, $usedEnvs);
+
+            if ($usedEnvs) {
+                $emptySecretHint = \sprintf('"%s" env var%s', implode('", "', $usedEnvs), 1 === \count($usedEnvs) ? '' : 's');
+            }
         }
-        $container->parameterCannotBeEmpty('kernel.secret', 'A non-empty value for the parameter "kernel.secret" is required. Did you forget to configure the "framework.secret" option?');
+        $container->parameterCannotBeEmpty('kernel.secret', 'A non-empty value for the parameter "kernel.secret" is required. Did you forget to configure the '.$emptySecretHint.'?');
 
         $container->setParameter('kernel.http_method_override', $config['http_method_override']);
         $container->setParameter('kernel.trust_x_sendfile_type_header', $config['trust_x_sendfile_type_header']);
@@ -462,9 +475,9 @@ class FrameworkExtension extends Extension
             $container->removeDefinition('test.session.listener');
         }
 
-        // csrf depends on session being registered
+        // csrf depends on session or stateless token ids being registered
         if (null === $config['csrf_protection']['enabled']) {
-            $this->writeConfigEnabled('csrf_protection', $config['csrf_protection']['stateless_token_ids'] || $this->readConfigEnabled('session', $container, $config['session']) && !class_exists(FullStack::class) && ContainerBuilder::willBeAvailable('symfony/security-csrf', CsrfTokenManagerInterface::class, ['symfony/framework-bundle']), $config['csrf_protection']);
+            $this->writeConfigEnabled('csrf_protection', ($config['csrf_protection']['stateless_token_ids'] || $this->readConfigEnabled('session', $container, $config['session'])) && !class_exists(FullStack::class) && ContainerBuilder::willBeAvailable('symfony/security-csrf', CsrfTokenManagerInterface::class, ['symfony/framework-bundle']), $config['csrf_protection']);
         }
         $this->registerSecurityCsrfConfiguration($config['csrf_protection'], $container, $loader);
 
@@ -479,8 +492,6 @@ class FrameworkExtension extends Extension
             if (ContainerBuilder::willBeAvailable('symfony/validator', Validation::class, ['symfony/framework-bundle', 'symfony/form'])) {
                 $this->writeConfigEnabled('validation', true, $config['validation']);
             } else {
-                $container->setParameter('validator.translation_domain', 'validators');
-
                 $container->removeDefinition('form.type_extension.form.validator');
                 $container->removeDefinition('form.type_guesser.validator');
             }
@@ -2396,11 +2407,6 @@ class FrameworkExtension extends Extension
             ];
         }
         foreach ($config['pools'] as $name => $pool) {
-            if (\in_array('cache.app', $pool['adapters'] ?? [], true) && $pool['tags']) {
-                trigger_deprecation('symfony/framework-bundle', '7.2', 'Using the "tags" option with the "cache.app" adapter is deprecated. You can use the "cache.app.taggable" adapter instead (aliased to the TagAwareCacheInterface for autowiring).');
-                // throw new LogicException('The "tags" option cannot be used with the "cache.app" adapter. You can use the "cache.app.taggable" adapter instead (aliased to the TagAwareCacheInterface for autowiring).');
-            }
-
             $pool['adapters'] = $pool['adapters'] ?: ['cache.app'];
 
             $isRedisTagAware = ['cache.adapter.redis_tag_aware'] === $pool['adapters'];
@@ -2546,11 +2552,13 @@ class FrameworkExtension extends Extension
                     ->setFactory([ScopingHttpClient::class, 'forBaseUri'])
                     ->setArguments([new Reference('http_client.transport'), $baseUri, $scopeConfig])
                     ->addTag('http_client.client')
+                    ->addTag('kernel.reset', ['method' => 'reset', 'on_invalid' => 'ignore'])
                 ;
             } else {
                 $container->register($name, ScopingHttpClient::class)
                     ->setArguments([new Reference('http_client.transport'), [$scope => $scopeConfig], $scope])
                     ->addTag('http_client.client')
+                    ->addTag('kernel.reset', ['method' => 'reset', 'on_invalid' => 'ignore'])
                 ;
             }
 
@@ -2780,7 +2788,7 @@ class FrameworkExtension extends Extension
             $container->removeDefinition('notifier.channel.email');
         }
 
-        foreach (['texter', 'chatter', 'notifier.channel.chat', 'notifier.channel.email', 'notifier.channel.sms'] as $serviceId) {
+        foreach (['texter', 'chatter', 'notifier.channel.chat', 'notifier.channel.email', 'notifier.channel.sms', 'notifier.channel.push', 'notifier.channel.desktop'] as $serviceId) {
             if (!$container->hasDefinition($serviceId)) {
                 continue;
             }
@@ -2829,8 +2837,6 @@ class FrameworkExtension extends Extension
             NotifierBridge\Engagespot\EngagespotTransportFactory::class => 'notifier.transport_factory.engagespot',
             NotifierBridge\Esendex\EsendexTransportFactory::class => 'notifier.transport_factory.esendex',
             NotifierBridge\Expo\ExpoTransportFactory::class => 'notifier.transport_factory.expo',
-            NotifierBridge\FakeChat\FakeChatTransportFactory::class => 'notifier.transport_factory.fake-chat',
-            NotifierBridge\FakeSms\FakeSmsTransportFactory::class => 'notifier.transport_factory.fake-sms',
             NotifierBridge\Firebase\FirebaseTransportFactory::class => 'notifier.transport_factory.firebase',
             NotifierBridge\FortySixElks\FortySixElksTransportFactory::class => 'notifier.transport_factory.forty-six-elks',
             NotifierBridge\FreeMobile\FreeMobileTransportFactory::class => 'notifier.transport_factory.free-mobile',
@@ -2918,20 +2924,26 @@ class FrameworkExtension extends Extension
             $container->removeDefinition($classToServices[NotifierBridge\Mercure\MercureTransportFactory::class]);
         }
 
-        if (ContainerBuilder::willBeAvailable('symfony/fake-chat-notifier', NotifierBridge\FakeChat\FakeChatTransportFactory::class, ['symfony/framework-bundle', 'symfony/notifier', 'symfony/mailer'])) {
-            $container->getDefinition($classToServices[NotifierBridge\FakeChat\FakeChatTransportFactory::class])
-                ->replaceArgument(0, new Reference('mailer'))
-                ->replaceArgument(1, new Reference('logger'))
+        // don't use ContainerBuilder::willBeAvailable() as these are not needed in production
+        if (class_exists(FakeChatTransportFactory::class)) {
+            $container->getDefinition('notifier.transport_factory.fake-chat')
+                ->replaceArgument(0, new Reference('mailer', ContainerBuilder::NULL_ON_INVALID_REFERENCE))
+                ->replaceArgument(1, new Reference('logger', ContainerBuilder::NULL_ON_INVALID_REFERENCE))
                 ->addArgument(new Reference('event_dispatcher', ContainerBuilder::NULL_ON_INVALID_REFERENCE))
                 ->addArgument(new Reference('http_client', ContainerBuilder::NULL_ON_INVALID_REFERENCE));
+        } else {
+            $container->removeDefinition('notifier.transport_factory.fake-chat');
         }
 
-        if (ContainerBuilder::willBeAvailable('symfony/fake-sms-notifier', NotifierBridge\FakeSms\FakeSmsTransportFactory::class, ['symfony/framework-bundle', 'symfony/notifier', 'symfony/mailer'])) {
-            $container->getDefinition($classToServices[NotifierBridge\FakeSms\FakeSmsTransportFactory::class])
-                ->replaceArgument(0, new Reference('mailer'))
-                ->replaceArgument(1, new Reference('logger'))
+        // don't use ContainerBuilder::willBeAvailable() as these are not needed in production
+        if (class_exists(FakeSmsTransportFactory::class)) {
+            $container->getDefinition('notifier.transport_factory.fake-sms')
+                ->replaceArgument(0, new Reference('mailer', ContainerBuilder::NULL_ON_INVALID_REFERENCE))
+                ->replaceArgument(1, new Reference('logger', ContainerBuilder::NULL_ON_INVALID_REFERENCE))
                 ->addArgument(new Reference('event_dispatcher', ContainerBuilder::NULL_ON_INVALID_REFERENCE))
                 ->addArgument(new Reference('http_client', ContainerBuilder::NULL_ON_INVALID_REFERENCE));
+        } else {
+            $container->removeDefinition('notifier.transport_factory.fake-sms');
         }
 
         if (ContainerBuilder::willBeAvailable('symfony/bluesky-notifier', NotifierBridge\Bluesky\BlueskyTransportFactory::class, ['symfony/framework-bundle', 'symfony/notifier'])) {

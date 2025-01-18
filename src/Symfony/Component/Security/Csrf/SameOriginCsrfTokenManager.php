@@ -207,9 +207,17 @@ final class SameOriginCsrfTokenManager implements CsrfTokenManagerInterface
 
     public function persistStrategy(Request $request): void
     {
-        if ($request->hasSession(true) && $request->attributes->has($this->cookieName)) {
-            $request->getSession()->set($this->cookieName, $request->attributes->get($this->cookieName));
+        if (!$request->attributes->has($this->cookieName)
+            || !$request->hasSession(true)
+            || !($session = $request->getSession())->isStarted()
+        ) {
+            return;
         }
+
+        $usageIndexValue = $session instanceof Session ? $usageIndexReference = &$session->getUsageIndex() : 0;
+        $usageIndexReference = \PHP_INT_MIN;
+        $session->set($this->cookieName, $request->attributes->get($this->cookieName));
+        $usageIndexReference = $usageIndexValue;
     }
 
     public function onKernelResponse(ResponseEvent $event): void
@@ -227,9 +235,21 @@ final class SameOriginCsrfTokenManager implements CsrfTokenManagerInterface
      */
     private function isValidOrigin(Request $request): ?bool
     {
-        $source = $request->headers->get('Origin') ?? $request->headers->get('Referer') ?? 'null';
+        $target = $request->getSchemeAndHttpHost().'/';
+        $source = 'null';
 
-        return 'null' === $source ? null : str_starts_with($source.'/', $request->getSchemeAndHttpHost().'/');
+        foreach (['Origin', 'Referer'] as $header) {
+            if (!$request->headers->has($header)) {
+                continue;
+            }
+            $source = $request->headers->get($header);
+
+            if (str_starts_with($source.'/', $target)) {
+                return true;
+            }
+        }
+
+        return 'null' === $source ? null : false;
     }
 
     /**

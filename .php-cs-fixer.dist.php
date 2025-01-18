@@ -32,7 +32,6 @@ return (new PhpCsFixer\Config())
         '@Symfony:risky' => true,
         'protected_to_private' => false,
         'header_comment' => ['header' => $fileHeaderComment],
-        'trailing_comma_in_multiline' => ['elements' => ['arrays', 'match', 'parameters']],
     ])
     ->setRiskyAllowed(true)
     ->setFinder(
