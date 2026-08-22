@@ -358,7 +358,7 @@ abstract class AbstractBootstrap4LayoutTestCase extends AbstractBootstrap3Layout
             '/div
     [@class="form-check"]
     [
-        ./input[@type="checkbox"][@name="name"][@id="my&id"][@class="my&class form-check-input"][@checked="checked"][@value="1"]
+        ./input[@type="checkbox"][@name="name"][@id="my&id"][@class="my&class form-check-input"][@checked=""][@value="1"]
         /following-sibling::label
             [.="[trans]Name[/trans]"]
             [@class="form-check-label required"]
@@ -382,7 +382,7 @@ abstract class AbstractBootstrap4LayoutTestCase extends AbstractBootstrap3Layout
     [@class="bar&baz form-control"]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -1019,7 +1019,7 @@ abstract class AbstractBootstrap4LayoutTestCase extends AbstractBootstrap3Layout
             [@type="radio"]
             [@name="name"]
             [@class="my&class form-check-input"]
-            [@checked="checked"]
+            [@checked=""]
             [@value="1"]
         /following-sibling::label
             [@class="form-check-label required"]
@@ -1088,7 +1088,7 @@ abstract class AbstractBootstrap4LayoutTestCase extends AbstractBootstrap3Layout
         );
     }
 
-    public function testButtonAttributeNameRepeatedIfTrue()
+    public function testButtonAttributeEmptyValueIfTrue()
     {
         $form = $this->factory->createNamed('button', ButtonType::class, null, [
             'attr' => ['foo' => true],
@@ -1096,8 +1096,8 @@ abstract class AbstractBootstrap4LayoutTestCase extends AbstractBootstrap3Layout
 
         $html = $this->renderWidget($form->createView());
 
-        // foo="foo"
-        $this->assertSame('<button type="button" id="button" name="button" foo="foo" class="btn-secondary btn">[trans]Button[/trans]</button>', $html);
+        // foo=""
+        $this->assertSame('<button type="button" id="button" name="button" foo="" class="btn-secondary btn">[trans]Button[/trans]</button>', $html);
     }
 
     public function testFile()

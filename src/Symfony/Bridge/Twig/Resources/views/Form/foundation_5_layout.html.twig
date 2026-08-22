@@ -67,7 +67,7 @@
             <div class="large-7 columns">{{ form_errors(form.date) }}</div>
             <div class="large-5 columns">{{ form_errors(form.time) }}</div>
         </div>
-        <div {{ block('widget_container_attributes') }}>
+        <div{{ block('widget_container_attributes') }}>
             <div class="large-7 columns">{{ form_widget(form.date, {datetime: true}) }}</div>
             <div class="large-5 columns">{{ form_widget(form.time, {datetime: true}) }}</div>
         </div>
@@ -80,7 +80,7 @@
     {% else %}
         {% set attr = attr|merge({class: (attr.class|default('') ~ ' row')|trim}) %}
         {% if datetime is not defined or not datetime %}
-            <div {{ block('widget_container_attributes') }}>
+            <div{{ block('widget_container_attributes') }}>
         {% endif %}
         {{- date_pattern|replace({
             '{{ year }}': '<div class="large-4 columns">' ~ form_widget(form.year) ~ '</div>',
@@ -99,7 +99,7 @@
     {% else %}
         {% set attr = attr|merge({class: (attr.class|default('') ~ ' row')|trim}) %}
         {% if datetime is not defined or false == datetime %}
-            <div {{ block('widget_container_attributes') -}}>
+            <div{{ block('widget_container_attributes') -}}>
         {% endif %}
         {% if with_seconds %}
             <div class="large-4 columns">{{ form_widget(form.hour) }}</div>
@@ -154,9 +154,10 @@
     {% if required and placeholder is none and not placeholder_in_choices and not multiple -%}
         {% set required = false %}
     {%- endif -%}
-    <select {{ block('widget_attributes') }}{% if multiple %} multiple="multiple" data-customforms="disabled"{% endif %}>
+    {%- set attr = attr|merge(multiple ? {multiple: true, 'data-customforms': 'disabled'} : {}) -%}
+    <select{{ block('widget_attributes') }}>
         {% if placeholder is not none -%}
-            <option value=""{% if placeholder_attr|default({}) %}{% with {attr: placeholder_attr} %}{{ block('attributes') }}{% endwith %}{% endif %}{% if required and value is empty %} selected="selected"{% endif %}>{{ translation_domain is same as(false) ? placeholder : placeholder|trans({}, translation_domain) }}</option>
+            <option{% with {attr: {value: ''}|html_attr_merge(placeholder_attr|default({}), {selected: required and value is empty})} %}{{ block('attributes') }}{% endwith %}>{{ translation_domain is same as(false) ? placeholder : placeholder|trans({}, translation_domain) }}</option>
         {%- endif %}
         {%- if preferred_choices|length > 0 -%}
             {% set options = preferred_choices %}
@@ -164,7 +165,7 @@
             {{- block('choice_widget_options') -}}
             {% if choices|length > 0 and separator is not none -%}
                 {%- if separator_html is not defined or separator_html is same as(false) -%}
-                    <option disabled="disabled">{{ separator }}</option>
+                    <option disabled="">{{ separator }}</option>
                 {% else %}
                     {{ separator|raw }}
                 {% endif %}
@@ -188,7 +189,7 @@
             {% endfor %}
         </ul>
     {% else %}
-        <div {{ block('widget_container_attributes') }}>
+        <div{{ block('widget_container_attributes') }}>
             {% for child in form %}
                 {%- set child_attr = child.vars.help ? child.vars.attr|merge({'aria-describedby': child.vars.id ~ '_help'}) : child.vars.attr -%}
                 {{ form_widget(child, {

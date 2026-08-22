@@ -39,6 +39,7 @@
         "ext-xml": "*",
         "doctrine/event-manager": "^2",
         "doctrine/persistence": "^3.1|^4",
+        "twig/html-extra": "^3.24|^4.0",
         "twig/twig": "^3.25|^4.0",
         "psr/cache": "^2.0|^3.0",
         "psr/clock": "^1.0",

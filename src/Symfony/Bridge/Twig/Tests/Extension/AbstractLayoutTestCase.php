@@ -487,7 +487,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
             '/input
     [@type="checkbox"]
     [@name="name"]
-    [@checked="checked"]
+    [@checked=""]
     [@value="1"]
 '
         );
@@ -546,7 +546,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [@name="name"]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -566,7 +566,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), [],
             '/select
     [@name="name"]
-    [@required="required"]
+    [@required=""]
     [@size="2"]
     [count(./option)=2]
 '
@@ -587,7 +587,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [@name="name"]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="Choice&A"]
+        ./option[@value="&a"][@selected=""][.="Choice&A"]
         /following-sibling::option[@value="&b"][not(@selected)][.="Choice&B"]
     ]
     [count(./option)=2]
@@ -612,7 +612,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [not(@required)]
     [
         ./option[@value=""][not(@selected)][not(@disabled)][.="Placeholder&Not&Translated"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="Choice&A"]
+        /following-sibling::option[@value="&a"][@selected=""][.="Choice&A"]
         /following-sibling::option[@value="&b"][not(@selected)][.="Choice&B"]
     ]
     [count(./option)=3]
@@ -634,7 +634,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [@name="name"]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][@class="foo&bar"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -657,7 +657,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [@class="bar&baz"]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"][not(@id)][not(@name)]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"][not(@id)][not(@name)]
         /following-sibling::option[@value="&b"][not(@class)][not(@selected)][.="[trans]Choice&B[/trans]"][not(@id)][not(@name)]
     ]
     [count(./option)=2]
@@ -704,8 +704,8 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [not(@required)]
     [
         ./option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
-        /following-sibling::option[@disabled="disabled"][not(@selected)][.="-- sep --"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@disabled=""][not(@selected)][.="-- sep --"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=4]
@@ -728,7 +728,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [not(@required)]
     [
         ./option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -751,8 +751,8 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [not(@required)]
     [
         ./option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
-        /following-sibling::option[@disabled="disabled"][not(@selected)][.=""]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@disabled=""][not(@selected)][.=""]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=4]
@@ -791,7 +791,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [not(@required)]
     [
         ./option[@value=""][.=""]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -838,7 +838,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [not(@required)]
     [
         ./option[@value=""][not(@selected)][not(@disabled)][not(@hidden)][.="[trans]Select&Anything&Not&Me[/trans]"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -859,14 +859,14 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         // The "disabled" attribute was removed again due to a bug in the
         // BlackBerry 10 browser.
         // See https://github.com/symfony/symfony/pull/7678
-        $placeholderHidden = $this->isRequiredPlaceholderHiddenByDefault() ? '[@hidden="hidden"]' : '[not(@hidden)]';
+        $placeholderHidden = $this->isRequiredPlaceholderHiddenByDefault() ? '[@hidden=""]' : '[not(@hidden)]';
         $this->assertWidgetMatchesXpath($form->createView(), [],
             '/select
     [@name="name"]
-    [@required="required"]
+    [@required=""]
     [
         ./option[@value=""][not(@selected)][not(@disabled)]'.$placeholderHidden.'[.="[trans]Test&Me[/trans]"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -891,10 +891,10 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), ['placeholder' => ''],
             '/select
     [@name="name"]
-    [@required="required"]
+    [@required=""]
     [
         ./option[@value=""][not(@selected)][not(@disabled)][not(@hidden)][.=""]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -918,7 +918,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [@name="name"]
     [./optgroup[@label="[trans]Group&1[/trans]"]
         [
-            ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+            ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
             /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
         ]
         [count(./option)=2]
@@ -946,7 +946,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [@name="name"]
     [./optgroup[@label="[trans]Group&1[/trans]"]
         [
-            ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+            ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
             /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
         ]
         [count(./option)=2]
@@ -972,10 +972,10 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), [],
             '/select
     [@name="name[]"]
-    [@required="required"]
-    [@multiple="multiple"]
+    [@required=""]
+    [@multiple=""]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -996,10 +996,10 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), [],
             '/select
     [@name="name[]"]
-    [@required="required"]
-    [@multiple="multiple"]
+    [@required=""]
+    [@multiple=""]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][@class="foo&bar"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -1019,9 +1019,9 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), [],
             '/select
     [@name="name[]"]
-    [@multiple="multiple"]
+    [@multiple=""]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -1041,9 +1041,9 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), [],
             '/select
     [@name="name[]"]
-    [@multiple="multiple"]
+    [@multiple=""]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -1279,7 +1279,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), [],
             '/select
     [@name="name"]
-    [./option[@value="AT"][@selected="selected"][.="Austria"]]
+    [./option[@value="AT"][@selected=""][.="Austria"]]
     [count(./option)>200]
 '
         );
@@ -1296,7 +1296,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
             '/select
     [@name="name"]
     [./option[@value=""][not(@selected)][not(@disabled)][.="[trans]Select&Country[/trans]"]]
-    [./option[@value="AT"][@selected="selected"][.="Austria"]]
+    [./option[@value="AT"][@selected=""][.="Austria"]]
     [count(./option)>201]
 '
         );
@@ -1318,23 +1318,23 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
             [
                 ./select
                     [@id="name_date_month"]
-                    [./option[@value="2"][@selected="selected"]]
+                    [./option[@value="2"][@selected=""]]
                 /following-sibling::select
                     [@id="name_date_day"]
-                    [./option[@value="3"][@selected="selected"]]
+                    [./option[@value="3"][@selected=""]]
                 /following-sibling::select
                     [@id="name_date_year"]
-                    [./option[@value="'.date('Y').'"][@selected="selected"]]
+                    [./option[@value="'.date('Y').'"][@selected=""]]
             ]
         /following-sibling::div
             [@id="name_time"]
             [
                 ./select
                     [@id="name_time_hour"]
-                    [./option[@value="4"][@selected="selected"]]
+                    [./option[@value="4"][@selected=""]]
                 /following-sibling::select
                     [@id="name_time_minute"]
-                    [./option[@value="5"][@selected="selected"]]
+                    [./option[@value="5"][@selected=""]]
             ]
     ]
     [count(.//select)=5]
@@ -1401,23 +1401,23 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
             [
                 ./select
                     [@id="name_date_month"]
-                    [./option[@value="2"][@selected="selected"]]
+                    [./option[@value="2"][@selected=""]]
                 /following-sibling::select
                     [@id="name_date_day"]
-                    [./option[@value="3"][@selected="selected"]]
+                    [./option[@value="3"][@selected=""]]
                 /following-sibling::select
                     [@id="name_date_year"]
-                    [./option[@value="'.date('Y').'"][@selected="selected"]]
+                    [./option[@value="'.date('Y').'"][@selected=""]]
             ]
         /following-sibling::div
             [@id="name_time"]
             [
                 ./select
                     [@id="name_time_hour"]
-                    [./option[@value="4"][@selected="selected"]]
+                    [./option[@value="4"][@selected=""]]
                 /following-sibling::select
                     [@id="name_time_minute"]
-                    [./option[@value="5"][@selected="selected"]]
+                    [./option[@value="5"][@selected=""]]
             ]
     ]
     [count(.//select)=5]
@@ -1441,26 +1441,26 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
             [
                 ./select
                     [@id="name_date_month"]
-                    [./option[@value="2"][@selected="selected"]]
+                    [./option[@value="2"][@selected=""]]
                 /following-sibling::select
                     [@id="name_date_day"]
-                    [./option[@value="3"][@selected="selected"]]
+                    [./option[@value="3"][@selected=""]]
                 /following-sibling::select
                     [@id="name_date_year"]
-                    [./option[@value="'.date('Y').'"][@selected="selected"]]
+                    [./option[@value="'.date('Y').'"][@selected=""]]
             ]
         /following-sibling::div
             [@id="name_time"]
             [
                 ./select
                     [@id="name_time_hour"]
-                    [./option[@value="4"][@selected="selected"]]
+                    [./option[@value="4"][@selected=""]]
                 /following-sibling::select
                     [@id="name_time_minute"]
-                    [./option[@value="5"][@selected="selected"]]
+                    [./option[@value="5"][@selected=""]]
                 /following-sibling::select
                     [@id="name_time_second"]
-                    [./option[@value="6"][@selected="selected"]]
+                    [./option[@value="6"][@selected=""]]
             ]
     ]
     [count(.//select)=6]
@@ -1524,13 +1524,13 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [
         ./select
             [@id="name_month"]
-            [./option[@value="2"][@selected="selected"]]
+            [./option[@value="2"][@selected=""]]
         /following-sibling::select
             [@id="name_day"]
-            [./option[@value="3"][@selected="selected"]]
+            [./option[@value="3"][@selected=""]]
         /following-sibling::select
             [@id="name_year"]
-            [./option[@value="'.date('Y').'"][@selected="selected"]]
+            [./option[@value="'.date('Y').'"][@selected=""]]
     ]
     [count(./select)=3]
 '
@@ -1659,13 +1659,13 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [
         ./select
             [@id="name_month"]
-            [./option[@value="2"][@selected="selected"]]
+            [./option[@value="2"][@selected=""]]
         /following-sibling::select
             [@id="name_day"]
-            [./option[@value="3"][@selected="selected"]]
+            [./option[@value="3"][@selected=""]]
         /following-sibling::select
             [@id="name_year"]
-            [./option[@value="2000"][@selected="selected"]]
+            [./option[@value="2000"][@selected=""]]
     ]
     [count(./select)=3]
 '
@@ -1687,15 +1687,15 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         ./select
             [@id="name_month"]
             [./option[@value=""][not(@selected)][not(@disabled)][.=""]]
-            [./option[@value="1"][@selected="selected"]]
+            [./option[@value="1"][@selected=""]]
         /following-sibling::select
             [@id="name_day"]
             [./option[@value=""][not(@selected)][not(@disabled)][.=""]]
-            [./option[@value="1"][@selected="selected"]]
+            [./option[@value="1"][@selected=""]]
         /following-sibling::select
             [@id="name_year"]
             [./option[@value=""][not(@selected)][not(@disabled)][.=""]]
-            [./option[@value="1950"][@selected="selected"]]
+            [./option[@value="1950"][@selected=""]]
     ]
     [count(./select)=3]
 '
@@ -1766,7 +1766,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
             '/input
     [@type="text"]
     [@name="name"]
-    [@disabled="disabled"]
+    [@disabled=""]
 '
         );
     }
@@ -1806,7 +1806,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), [],
             '/select
     [@name="name"]
-    [./option[@value="de"][@selected="selected"][.="German"]]
+    [./option[@value="de"][@selected=""][.="German"]]
     [count(./option)>200]
 '
         );
@@ -1819,7 +1819,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), [],
             '/select
     [@name="name"]
-    [./option[@value="de_AT"][@selected="selected"][.="German (Austria)"]]
+    [./option[@value="de_AT"][@selected=""][.="German (Austria)"]]
     [count(./option)>200]
 '
         );
@@ -1978,7 +1978,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
             '/input
     [@type="radio"]
     [@name="name"]
-    [@checked="checked"]
+    [@checked=""]
     [@value="1"]
 '
         );
@@ -2114,11 +2114,11 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         ./select
             [@id="name_hour"]
             [not(@size)]
-            [./option[@value="4"][@selected="selected"]]
+            [./option[@value="4"][@selected=""]]
         /following-sibling::select
             [@id="name_minute"]
             [not(@size)]
-            [./option[@value="5"][@selected="selected"]]
+            [./option[@value="5"][@selected=""]]
     ]
     [count(./select)=2]
 '
@@ -2139,17 +2139,17 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         ./select
             [@id="name_hour"]
             [not(@size)]
-            [./option[@value="4"][@selected="selected"]]
+            [./option[@value="4"][@selected=""]]
             [count(./option)>23]
         /following-sibling::select
             [@id="name_minute"]
             [not(@size)]
-            [./option[@value="5"][@selected="selected"]]
+            [./option[@value="5"][@selected=""]]
             [count(./option)>59]
         /following-sibling::select
             [@id="name_second"]
             [not(@size)]
-            [./option[@value="6"][@selected="selected"]]
+            [./option[@value="6"][@selected=""]]
             [count(./option)>59]
     ]
     [count(./select)=3]
@@ -2173,14 +2173,14 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
             [@name="name[hour]"]
             [@value="04"]
             [@size="1"]
-            [@required="required"]
+            [@required=""]
         /following-sibling::input
             [@type="text"]
             [@id="name_minute"]
             [@name="name[minute]"]
             [@value="05"]
             [@size="1"]
-            [@required="required"]
+            [@required=""]
     ]
     [count(./input)=2]
 '
@@ -2276,7 +2276,7 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
             '/select
     [@name="name"]
     [not(@required)]
-    [./option[@value="Europe/Vienna"][@selected="selected"][.="Europe / Vienna"]]
+    [./option[@value="Europe/Vienna"][@selected=""][.="Europe / Vienna"]]
     [count(./option)>200]
 '
         );
@@ -2617,10 +2617,10 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $html = $this->renderWidget($form->createView());
 
         // compare plain HTML to check the whitespace
-        $this->assertSame('<input type="text" id="text" name="text" disabled="disabled" required="required" readonly="readonly" maxlength="10" pattern="\d+" class="foobar" data-foo="bar" value="value" />', $html);
+        $this->assertSame('<input type="text" id="text" name="text" disabled="" required="" readonly="" maxlength="10" pattern="\d+" class="foobar" data-foo="bar" value="value" />', $html);
     }
 
-    public function testWidgetAttributeNameRepeatedIfTrue()
+    public function testWidgetAttributeEmptyValueIfTrue()
     {
         $form = $this->factory->createNamed('text', 'Symfony\Component\Form\Extension\Core\Type\TextType', 'value', [
             'attr' => ['foo' => true],
@@ -2628,8 +2628,8 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
 
         $html = $this->renderWidget($form->createView());
 
-        // foo="foo"
-        $this->assertSame('<input type="text" id="text" name="text" required="required" foo="foo" value="value" />', $html);
+        // foo=""
+        $this->assertSame('<input type="text" id="text" name="text" required="" foo="" value="value" />', $html);
     }
 
     public function testWidgetAttributeHiddenIfFalse()
@@ -2653,10 +2653,10 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
         $html = $this->renderWidget($form->createView());
 
         // compare plain HTML to check the whitespace
-        $this->assertSame('<button type="button" id="button" name="button" disabled="disabled" class="foobar" data-foo="bar">[trans]Button[/trans]</button>', $html);
+        $this->assertSame('<button type="button" id="button" name="button" disabled="" class="foobar" data-foo="bar">[trans]Button[/trans]</button>', $html);
     }
 
-    public function testButtonAttributeNameRepeatedIfTrue()
+    public function testButtonAttributeEmptyValueIfTrue()
     {
         $form = $this->factory->createNamed('button', 'Symfony\Component\Form\Extension\Core\Type\ButtonType', null, [
             'attr' => ['foo' => true],
@@ -2664,8 +2664,8 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
 
         $html = $this->renderWidget($form->createView());
 
-        // foo="foo"
-        $this->assertSame('<button type="button" id="button" name="button" foo="foo">[trans]Button[/trans]</button>', $html);
+        // foo=""
+        $this->assertSame('<button type="button" id="button" name="button" foo="">[trans]Button[/trans]</button>', $html);
     }
 
     public function testButtonAttributeHiddenIfFalse()
@@ -2911,9 +2911,9 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     ';
 
         if (!$validate) {
-            $xpath .= '[@formnovalidate="formnovalidate"]';
+            $xpath .= '[@formnovalidate=""]';
         } else {
-            $xpath .= '[not(@formnovalidate="formnovalidate")]';
+            $xpath .= '[not(@formnovalidate="")]';
         }
 
         $this->assertMatchesXpath($html, $xpath);
@@ -2977,10 +2977,10 @@ abstract class AbstractLayoutTestCase extends FormLayoutTestCase
     [
         ./select
             [@id="name_year"]
-            [./option[@value="'.$data['year'].'"][@selected="selected"]]
+            [./option[@value="'.$data['year'].'"][@selected=""]]
         /following-sibling::select
             [@id="name_week"]
-            [./option[@value="'.$data['week'].'"][@selected="selected"]]
+            [./option[@value="'.$data['week'].'"][@selected=""]]
     ]
     [count(.//select)=2]'
         );

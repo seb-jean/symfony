@@ -18,6 +18,7 @@ use Symfony\Bridge\Twig\Tests\Extension\Fixtures\StubTranslator;
 use Symfony\Component\Form\FormRenderer;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 use Twig\Environment;
+use Twig\Extra\Html\HtmlExtension;
 use Twig\Loader\FilesystemLoader;
 
 /**
@@ -59,6 +60,7 @@ class FormExtensionBootstrap4LayoutTest extends AbstractBootstrap4LayoutTestCase
         ]), ['strict_variables' => true]);
         $environment->addExtension(new TranslationExtension(new StubTranslator()));
         $environment->addExtension(new FormExtension());
+        $environment->addExtension(new HtmlExtension());
         $environment->setCharset('ISO-8859-1');
 
         $rendererEngine = new TwigRendererEngine([
@@ -76,7 +78,7 @@ class FormExtensionBootstrap4LayoutTest extends AbstractBootstrap4LayoutTestCase
         $this->assertSame(<<<'HTML'
             <div class="input-group "><div class="input-group-prepend">
                                 <span class="input-group-text">&euro; </span>
-                            </div><input type="text" id="name" name="name" required="required" inputmode="decimal" class="form-control" /></div>
+                            </div><input type="text" id="name" name="name" required="" inputmode="decimal" class="form-control" /></div>
             HTML,
             trim($this->renderWidget($view))
         );

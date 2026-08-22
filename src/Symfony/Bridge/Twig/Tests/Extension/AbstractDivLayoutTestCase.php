@@ -535,12 +535,12 @@ abstract class AbstractDivLayoutTestCase extends AbstractLayoutTestCase
         ./div
             [
                 ./label[@for="name_first"][.="[trans]Test[/trans]"]
-                /following-sibling::input[@type="text"][@id="name_first"][@required="required"]
+                /following-sibling::input[@type="text"][@id="name_first"][@required=""]
             ]
         /following-sibling::div
             [
                 ./label[@for="name_second"][.="[trans]Test2[/trans]"]
-                /following-sibling::input[@type="text"][@id="name_second"][@required="required"]
+                /following-sibling::input[@type="text"][@id="name_second"][@required=""]
             ]
         /following-sibling::input[@type="hidden"][@id="name__token"]
     ]
@@ -881,8 +881,8 @@ abstract class AbstractDivLayoutTestCase extends AbstractLayoutTestCase
             '/select
     [@name="name"]
     [
-        ./option[@value="&d"][@selected="selected"]
-        /following-sibling::option[@disabled="disabled"][.="-- sep --"]
+        ./option[@value="&d"][@selected=""]
+        /following-sibling::option[@disabled=""][.="-- sep --"]
         /following-sibling::option[@value="&a"][not(@selected)]
         /following-sibling::option[@value="&c"][not(@selected)]
     ]
@@ -906,11 +906,11 @@ abstract class AbstractDivLayoutTestCase extends AbstractLayoutTestCase
     [@name="name"]
     [
         ./option[@value="&d"][not(@selected)]
-        /following-sibling::option[@disabled="disabled"][.="-- sep --"]
+        /following-sibling::option[@disabled=""][.="-- sep --"]
         /following-sibling::option[@value="&a"][not(@selected)]
         /following-sibling::option[@value="&b"][not(@selected)]
         /following-sibling::option[@value="&c"][not(@selected)]
-        /following-sibling::option[@value="&d"][@selected="selected"]
+        /following-sibling::option[@value="&d"][@selected=""]
     ]
     [count(./option)=7]
 '
@@ -977,7 +977,7 @@ abstract class AbstractDivLayoutTestCase extends AbstractLayoutTestCase
         $this->assertStringContainsString('<div id="form" class="foobar" data-foo="bar">', $html);
     }
 
-    public function testWidgetContainerAttributeNameRepeatedIfTrue()
+    public function testWidgetContainerAttributeEmptyValueIfTrue()
     {
         $form = $this->factory->createNamed('form', 'Symfony\Component\Form\Extension\Core\Type\FormType', null, [
             'attr' => ['foo' => true],
@@ -985,7 +985,7 @@ abstract class AbstractDivLayoutTestCase extends AbstractLayoutTestCase
 
         $html = $this->renderWidget($form->createView());
 
-        // foo="foo"
-        $this->assertStringContainsString('<div id="form" foo="foo">', $html);
+        // foo=""
+        $this->assertStringContainsString('<div id="form" foo="">', $html);
     }
 }

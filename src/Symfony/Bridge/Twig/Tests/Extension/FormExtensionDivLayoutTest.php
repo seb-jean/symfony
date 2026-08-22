@@ -21,6 +21,7 @@ use Symfony\Component\Form\FormRenderer;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 use Twig\Environment;
+use Twig\Extra\Html\HtmlExtension;
 use Twig\Loader\FilesystemLoader;
 
 class FormExtensionDivLayoutTest extends AbstractDivLayoutTestCase
@@ -139,6 +140,7 @@ class FormExtensionDivLayoutTest extends AbstractDivLayoutTestCase
         ]), ['strict_variables' => true]);
         $environment->addExtension(new TranslationExtension(new StubTranslator()));
         $environment->addExtension(new FormExtension());
+        $environment->addExtension(new HtmlExtension());
         $environment->setCharset('ISO-8859-1');
 
         $rendererEngine = new TwigRendererEngine([
@@ -153,7 +155,7 @@ class FormExtensionDivLayoutTest extends AbstractDivLayoutTestCase
             ->createView()
         ;
 
-        $this->assertSame('&euro; <input type="text" id="name" name="name" required="required" inputmode="decimal" />', $this->renderWidget($view));
+        $this->assertSame('&euro; <input type="text" id="name" name="name" required="" inputmode="decimal" />', $this->renderWidget($view));
     }
 
     public function testHelpAttr()

@@ -14,11 +14,11 @@
         {# Attribute "required" is not supported #}
         {%- set required = false -%}
     {%- endif -%}
-    <input type="{{ type }}" {{ block('widget_attributes') }} {% if value is not empty %}value="{{ value }}" {% endif %}/>
+    <input type="{{ type }}"{{ block('widget_attributes') }}{% if value is not empty %} value="{{ value }}"{% endif %} />
 {%- endblock form_widget_simple -%}
 
 {%- block form_widget_compound -%}
-    <div {{ block('widget_container_attributes') }}>
+    <div{{ block('widget_container_attributes') }}>
         {%- if form is rootform -%}
             {{ form_errors(form) }}
         {%- endif -%}
@@ -46,7 +46,7 @@
 {%- endblock polymorphic_collection_widget -%}
 
 {%- block textarea_widget -%}
-    <textarea {{ block('widget_attributes') }}>{{ value }}</textarea>
+    <textarea{{ block('widget_attributes') }}>{{ value }}</textarea>
 {%- endblock textarea_widget -%}
 
 {%- block choice_widget -%}
@@ -58,7 +58,7 @@
 {%- endblock choice_widget -%}
 
 {%- block choice_widget_expanded -%}
-    <div {{ block('widget_container_attributes') }}>
+    <div{{ block('widget_container_attributes') }}>
     {%- for child in form %}
         {%- set child_attr = child.vars.help ? child.vars.attr|merge({'aria-describedby': child.vars.id ~ '_help'}) : child.vars.attr -%}
         {{- form_widget(child, {attr: child_attr}) -}}
@@ -72,9 +72,10 @@
     {%- if required and placeholder is none and not placeholder_in_choices and not multiple and (attr.size is not defined or attr.size <= 1) -%}
         {% set required = false %}
     {%- endif -%}
-    <select {{ block('widget_attributes') }}{% if multiple %} multiple="multiple"{% endif %}>
+    {%- set attr = attr|merge({multiple: multiple}) -%}
+    <select{{ block('widget_attributes') }}>
         {%- if placeholder is not none -%}
-            <option value=""{% if placeholder_attr|default({}) %}{% with {attr: placeholder_attr} %}{{ block('attributes') }}{% endwith %}{% endif %}{% if required and value is empty %} selected="selected"{% endif %}>{{ placeholder != '' ? (translation_domain is same as(false) ? placeholder : placeholder|trans({}, translation_domain)) }}</option>
+            <option{% with {attr: {value: ''}|html_attr_merge(placeholder_attr|default({}), {selected: required and value is empty})} %}{{ block('attributes') }}{% endwith %}>{{ placeholder != '' ? (translation_domain is same as(false) ? placeholder : placeholder|trans({}, translation_domain)) }}</option>
         {%- endif -%}
         {%- if preferred_choices|length > 0 -%}
             {% set options = preferred_choices %}
@@ -82,7 +83,7 @@
             {{- block('choice_widget_options') -}}
             {%- if choices|length > 0 and separator is not none -%}
                 {%- if separator_html is not defined or separator_html is same as(false) -%}
-                    <option disabled="disabled">{{ separator }}</option>
+                    <option disabled="">{{ separator }}</option>
                 {% else %}
                     {{ separator|raw }}
                 {% endif %}
@@ -103,24 +104,26 @@
                 {{- block('choice_widget_options') -}}
             </optgroup>
         {%- else -%}
-            <option value="{{ choice.value }}"{% if choice.attr %}{% with {attr: choice.attr} %}{{ block('attributes') }}{% endwith %}{% endif %}{% if (not render_preferred_choices|default(false) or not (duplicate_preferred_choices ?? true)) and choice is selectedchoice(value) %} selected="selected"{% endif %}>{{ choice_translation_domain is same as(false) ? choice.label : choice.label|trans(choice.labelTranslationParameters, choice_translation_domain) }}</option>
+            <option{% with {attr: {value: choice.value}|html_attr_merge(choice.attr, {selected: (not render_preferred_choices|default(false) or not (duplicate_preferred_choices ?? true)) and choice is selectedchoice(value)})} %}{{ block('attributes') }}{% endwith %}>{{ choice_translation_domain is same as(false) ? choice.label : choice.label|trans(choice.labelTranslationParameters, choice_translation_domain) }}</option>
         {%- endif -%}
     {% endfor %}
 {%- endblock choice_widget_options -%}
 
 {%- block checkbox_widget -%}
-    <input type="checkbox" {{ block('widget_attributes') }}{% if value is defined %} value="{{ value }}"{% endif %}{% if checked %} checked="checked"{% endif %} />
+    {%- set attr = attr|merge({value: value|default(null), checked: checked}) -%}
+    <input type="checkbox"{{ block('widget_attributes') }} />
 {%- endblock checkbox_widget -%}
 
 {%- block radio_widget -%}
-    <input type="radio" {{ block('widget_attributes') }}{% if value is defined %} value="{{ value }}"{% endif %}{% if checked %} checked="checked"{% endif %} />
+    {%- set attr = attr|merge({value: value|default(null), checked: checked}) -%}
+    <input type="radio"{{ block('widget_attributes') }} />
 {%- endblock radio_widget -%}
 
 {%- block datetime_widget -%}
     {% if widget == 'single_text' %}
         {{- block('form_widget_simple') -}}
     {%- else -%}
-        <div {{ block('widget_container_attributes') }}>
+        <div{{ block('widget_container_attributes') }}>
             {{- form_errors(form.date) -}}
             {{- form_errors(form.time) -}}
             {{- form_widget(form.date) -}}
@@ -133,7 +136,7 @@
     {%- if widget == 'single_text' -%}
         {{ block('form_widget_simple') }}
     {%- else -%}
-        <div {{ block('widget_container_attributes') }}>
+        <div{{ block('widget_container_attributes') }}>
             {{- date_pattern|replace({
                 '{{ year }}': form_widget(form.year),
                 '{{ month }}': form_widget(form.month),
@@ -148,7 +151,7 @@
         {{ block('form_widget_simple') }}
     {%- else -%}
         {%- set vars = widget == 'text' ? {attr: {size: 1}} : {} -%}
-        <div {{ block('widget_container_attributes') }}>
+        <div{{ block('widget_container_attributes') }}>
             {{ form_widget(form.hour, vars) }}{% if with_minutes %}:{{ form_widget(form.minute, vars) }}{% endif %}{% if with_seconds %}:{{ form_widget(form.second, vars) }}{% endif %}
         </div>
     {%- endif -%}
@@ -158,7 +161,7 @@
     {%- if widget == 'single_text' -%}
         {{- block('form_widget_simple') -}}
     {%- else -%}
-        <div {{ block('widget_container_attributes') }}>
+        <div{{ block('widget_container_attributes') }}>
             {{- form_errors(form) -}}
             <table class="{{ table_class|default('') }}" role="presentation">
                 <thead>
@@ -240,7 +243,7 @@
 {%- endblock range_widget %}
 
 {%- block button_widget -%}
-    <button type="{{ type|default('button') }}" {{ block('button_attributes') }}>
+    <button type="{{ type|default('button') }}"{{ block('button_attributes') }}>
         {{- block('form_label_content') -}}
     </button>
 {%- endblock button_widget -%}
@@ -270,7 +273,7 @@
         {{ block('form_widget_simple') }}
     {%- else -%}
         {%- set vars = widget == 'text' ? {attr: {size: 1}} : {} -%}
-        <div {{ block('widget_container_attributes') }}>
+        <div{{ block('widget_container_attributes') }}>
             {{ form_widget(form.year, vars) }}-{{ form_widget(form.week, vars) }}
         </div>
     {%- endif -%}
@@ -286,7 +289,7 @@
         {% if required -%}
             {% set label_attr = label_attr|merge({class: (label_attr.class|default('') ~ ' required')|trim}) %}
         {%- endif -%}
-        <{{ element|default('label') }}{% if label_attr %}{% with {attr: label_attr} %}{{ block('attributes') }}{% endwith %}{% endif %}>
+        <{{ element|default('label') }}{% with {attr: label_attr} %}{{ block('attributes') }}{% endwith %}>
             {{- block('form_label_content') -}}
         </{{ element|default('label') }}>
     {%- endif -%}
@@ -325,7 +328,7 @@
 {% block form_help -%}
     {%- if help -%}
         {%- set help_attr = help_attr|merge({class: (help_attr.class|default('') ~ ' help-text')|trim}) -%}
-        <{{ element|default('div') }} id="{{ id }}_help"{% with {attr: help_attr} %}{{ block('attributes') }}{% endwith %}>
+        <{{ element|default('div') }}{% with {attr: {id: id ~ '_help'}|html_attr_merge(help_attr)} %}{{ block('attributes') }}{% endwith %}>
             {{- block('form_help_content') -}}
         </{{ element|default('div') }}>
     {%- endif -%}
@@ -367,10 +370,10 @@
         {%- set aria_describedby = aria_describedby|merge(errors|map((_, index) => id ~ '_error' ~ (index + 1))) -%}
     {%- endif -%}
     {%- if aria_describedby|length > 0 -%}
-        {%- set attr = attr|merge({'aria-describedby': aria_describedby|join(' ')}) -%}
+        {%- set attr = attr|merge({'aria-describedby': aria_describedby}) -%}
     {%- endif -%}
     {%- if errors|length > 0 -%}
-        {%- set attr = attr|merge({'aria-invalid': 'true'}) -%}
+        {%- set attr = attr|merge({'aria-invalid': true}) -%}
     {%- endif -%}
     {%- set widget_attr = {attr: attr} -%}
     {{- block('form_row_render') -}}
@@ -414,7 +417,8 @@
     {%- else -%}
         {% set form_method = 'POST' %}
     {%- endif -%}
-    <form{% if name != '' and attr.name is not defined %} name="{{ name }}"{% endif %} method="{{ form_method|lower }}"{% if action != '' %} action="{{ action }}"{% endif %}{{ block('attributes') }}{% if multipart %} enctype="multipart/form-data"{% endif %}>
+    {%- set attr = {name: name != '' ? name : null, method: form_method|lower, action: action != '' ? action : null}|html_attr_merge(attr, multipart ? {enctype: 'multipart/form-data'}) -%}
+    <form{{ block('attributes') }}>
     {%- if form_method != method -%}
         <input type="hidden" name="_method" value="{{ method }}" />
     {%- endif -%}
@@ -468,31 +472,27 @@
 {%- endblock form_rows -%}
 
 {%- block widget_attributes -%}
-    id="{{ id }}" name="{{ full_name }}"
-    {%- if disabled %} disabled="disabled"{% endif -%}
-    {%- if required %} required="required"{% endif -%}
-    {{ block('attributes') }}
+    {%- set attr = {id: id, name: full_name, disabled: disabled, required: required}|html_attr_merge(attr) -%}
+    {{- block('attributes') -}}
 {%- endblock widget_attributes -%}
 
 {%- block widget_container_attributes -%}
-    {%- if id is not empty %}id="{{ id }}"{% endif -%}
-    {{ block('attributes') }}
+    {%- set attr = (id is not empty ? {id: id} : {})|html_attr_merge(attr) -%}
+    {{- block('attributes') -}}
 {%- endblock widget_container_attributes -%}
 
 {%- block button_attributes -%}
-    id="{{ id }}" name="{{ full_name }}"{% if disabled %} disabled="disabled"{% endif -%}
-    {{ block('attributes') }}
+    {%- set attr = {id: id, name: full_name, disabled: disabled}|html_attr_merge(attr) -%}
+    {{- block('attributes') -}}
 {%- endblock button_attributes -%}
 
 {% block attributes -%}
-    {%- for attrname, attrvalue in attr -%}
-        {{- ' ' -}}
-        {%- if attrname in ['placeholder', 'title'] -%}
-            {{- attrname }}="{{ translation_domain is same as(false) or attrvalue is null ? attrvalue : attrvalue|trans(attr_translation_parameters, translation_domain) }}"
-        {%- elseif attrvalue is same as(true) -%}
-            {{- attrname }}="{{ attrname }}"
-        {%- elseif attrvalue is not same as(false) -%}
-            {{- attrname }}="{{ attrvalue }}"
-        {%- endif -%}
-    {%- endfor -%}
+    {%- if translation_domain is not same as(false) -%}
+        {%- for attrname in ['placeholder', 'title'] -%}
+            {%- if attr[attrname] is defined and attr[attrname] is not null -%}
+                {%- set attr = attr|merge({(attrname): attr[attrname]|trans(attr_translation_parameters, translation_domain)}) -%}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- endif -%}
+    {%- if attr %} {{ html_attr(attr) }}{% endif -%}
 {%- endblock attributes -%}
