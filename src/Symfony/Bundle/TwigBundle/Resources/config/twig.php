@@ -47,6 +47,7 @@ use Twig\Extension\EscaperExtension;
 use Twig\Extension\OptimizerExtension;
 use Twig\Extension\StagingExtension;
 use Twig\ExtensionSet;
+use Twig\Extra\Html\HtmlExtension;
 use Twig\Loader\ChainLoader;
 use Twig\Loader\FilesystemLoader;
 use Twig\Profiler\Profile;
@@ -139,6 +140,11 @@ return static function (ContainerConfigurator $container) {
         ->set('twig.extension.expression', ExpressionExtension::class)
 
         ->set('twig.extension.emoji', EmojiExtension::class)
+
+        // the id is the one used by twig/extra-bundle, so that the extension is
+        // registered only once when that bundle is installed as well
+        ->set('twig.extension.html', HtmlExtension::class)
+            ->tag('twig.extension')
 
         ->set('twig.extension.htmlsanitizer', HtmlSanitizerExtension::class)
             ->args([tagged_locator('html_sanitizer', 'sanitizer')])

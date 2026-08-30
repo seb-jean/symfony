@@ -87,7 +87,7 @@ class FormExtensionDaisyUi5LayoutTest extends AbstractDivLayoutTestCase
     [contains(@class, "bar&baz")]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"][not(@id)][not(@name)]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"][not(@id)][not(@name)]
         /following-sibling::option[@value="&b"][not(@class)][not(@selected)][.="[trans]Choice&B[/trans]"][not(@id)][not(@name)]
     ]
     [count(./option)=2]
@@ -373,7 +373,7 @@ class FormExtensionDaisyUi5LayoutTest extends AbstractDivLayoutTestCase
         );
     }
 
-    public function testWidgetAttributeNameRepeatedIfTrue()
+    public function testWidgetAttributeEmptyValueIfTrue()
     {
         $form = $this->factory->createNamed('text', 'Symfony\Component\Form\Extension\Core\Type\TextType', 'value', [
             'attr' => ['foo' => true],
@@ -381,7 +381,7 @@ class FormExtensionDaisyUi5LayoutTest extends AbstractDivLayoutTestCase
 
         $html = $this->renderWidget($form->createView());
 
-        $this->assertSame('<input type="text" id="text" name="text" required="required" foo="foo" class="input mt-2" value="value" />', $html);
+        $this->assertSame('<input type="text" id="text" name="text" required="" foo="" class="input mt-2" value="value" />', $html);
     }
 
     public function testButtonAttributes()
@@ -393,10 +393,10 @@ class FormExtensionDaisyUi5LayoutTest extends AbstractDivLayoutTestCase
 
         $html = $this->renderWidget($form->createView());
 
-        $this->assertSame('<button type="button" id="button" name="button" disabled="disabled" class="foobar btn" data-foo="bar">[trans]Button[/trans]</button>', $html);
+        $this->assertSame('<button type="button" id="button" name="button" disabled="" class="foobar btn" data-foo="bar">[trans]Button[/trans]</button>', $html);
     }
 
-    public function testButtonAttributeNameRepeatedIfTrue()
+    public function testButtonAttributeEmptyValueIfTrue()
     {
         $form = $this->factory->createNamed('button', 'Symfony\Component\Form\Extension\Core\Type\ButtonType', null, [
             'attr' => ['foo' => true],
@@ -404,7 +404,7 @@ class FormExtensionDaisyUi5LayoutTest extends AbstractDivLayoutTestCase
 
         $html = $this->renderWidget($form->createView());
 
-        $this->assertSame('<button type="button" id="button" name="button" foo="foo" class="btn-neutral btn">[trans]Button[/trans]</button>', $html);
+        $this->assertSame('<button type="button" id="button" name="button" foo="" class="btn-neutral btn">[trans]Button[/trans]</button>', $html);
     }
 
     public function testWeekSingleText()

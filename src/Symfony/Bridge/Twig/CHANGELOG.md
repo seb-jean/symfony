@@ -4,6 +4,8 @@ CHANGELOG
 8.2
 ---
 
+ * Render the attributes of the built-in form themes with the `html_attr` function from `twig/html-extra`,
+   which is now a dependency of this package
  * Add the `logout_form()` function to build a form that logs the user out with a POST
  * Add the `normalize` filter to normalize values with the Serializer component
  * Add the `impersonation_form()` and `impersonation_exit_form()` functions to build a form that switches the user with a POST

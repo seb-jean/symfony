@@ -20,6 +20,7 @@ use Symfony\Component\Form\Test\FormIntegrationTestCase;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 use Twig\Environment;
 use Twig\Extension\ExtensionInterface;
+use Twig\Extra\Html\HtmlExtension;
 use Twig\Loader\FilesystemLoader;
 
 /**
@@ -39,6 +40,11 @@ abstract class FormLayoutTestCase extends FormIntegrationTestCase
 
         $environment = new Environment($loader, ['strict_variables' => true]);
         $environment->setExtensions($this->getTwigExtensions());
+
+        // the built-in form themes rely on the "html_attr" function
+        if (!$environment->hasExtension(HtmlExtension::class)) {
+            $environment->addExtension(new HtmlExtension());
+        }
 
         foreach ($this->getTwigGlobals() as $name => $value) {
             $environment->addGlobal($name, $value);

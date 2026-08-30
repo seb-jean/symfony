@@ -32,7 +32,7 @@
 
 {%- block choice_widget_expanded -%}
     {%- set attr = attr|merge({class: attr.class|default('mt-2')}) -%}
-    <div {{ block('widget_container_attributes') }}>
+    <div{{ block('widget_container_attributes') }}>
         {%- for child in form %}
             <div class="flex items-center">
                 {%- set child_attr = child.vars.help ? child.vars.attr|merge({'aria-describedby': child.vars.id ~ '_help'}) : child.vars.attr -%}

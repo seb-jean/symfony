@@ -318,7 +318,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         ./label
             [.=" [trans]Name[/trans]"]
             [
-                ./input[@type="checkbox"][@name="name"][@id="my&id"][@class="my&class"][@checked="checked"][@value="1"]
+                ./input[@type="checkbox"][@name="name"][@id="my&id"][@class="my&class"][@checked=""][@value="1"]
             ]
     ]
 '
@@ -392,7 +392,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [@class="my&class form-control"]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -415,7 +415,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [@class="bar&baz form-control"]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -472,7 +472,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         $this->assertWidgetMatchesXpath($form->createView(), ['attr' => ['class' => '']],
             '/select
     [@name="name"]
-    [@required="required"]
+    [@required=""]
     [@size="2"]
     [count(./option)=2]
 '
@@ -494,7 +494,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [@class="my&class form-control"]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="Choice&A"]
+        ./option[@value="&a"][@selected=""][.="Choice&A"]
         /following-sibling::option[@value="&b"][not(@selected)][.="Choice&B"]
     ]
     [count(./option)=2]
@@ -520,7 +520,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [not(@required)]
     [
         ./option[@value=""][not(@selected)][not(@disabled)][.="Placeholder&Not&Translated"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="Choice&A"]
+        /following-sibling::option[@value="&a"][@selected=""][.="Choice&A"]
         /following-sibling::option[@value="&b"][not(@selected)][.="Choice&B"]
     ]
     [count(./option)=3]
@@ -543,7 +543,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [@class="my&class form-control"]
     [not(@required)]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][@class="foo&bar"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -567,8 +567,8 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [not(@required)]
     [
         ./option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
-        /following-sibling::option[@disabled="disabled"][not(@selected)][.="-- sep --"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@disabled=""][not(@selected)][.="-- sep --"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=4]
@@ -593,8 +593,8 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [not(@required)]
     [
         ./option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
-        /following-sibling::option[@disabled="disabled"][not(@selected)][.="-- sep --"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@disabled=""][not(@selected)][.="-- sep --"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
     ]
     [count(./option)=3]
 '
@@ -617,8 +617,8 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [not(@required)]
     [
         ./option[@value="&a"][not(@selected)][.="[trans]Choice&A[/trans]"]
-        /following-sibling::option[@disabled="disabled"][not(@selected)][.="-- sep --"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@disabled=""][not(@selected)][.="-- sep --"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=4]
@@ -642,7 +642,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [not(@required)]
     [
         ./option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -666,8 +666,8 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [not(@required)]
     [
         ./option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
-        /following-sibling::option[@disabled="disabled"][not(@selected)][.=""]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@disabled=""][not(@selected)][.=""]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=4]
@@ -708,7 +708,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [not(@required)]
     [
         ./option[@value=""][.=""]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -757,7 +757,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [not(@required)]
     [
         ./option[@value=""][not(@selected)][not(@disabled)][.="[trans]Select&Anything&Not&Me[/trans]"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -775,15 +775,15 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             'placeholder' => 'Test&Me',
         ]);
 
-        $placeholderHidden = $this->isRequiredPlaceholderHiddenByDefault() ? '[@hidden="hidden"]' : '[not(@hidden)]';
+        $placeholderHidden = $this->isRequiredPlaceholderHiddenByDefault() ? '[@hidden=""]' : '[not(@hidden)]';
         $this->assertWidgetMatchesXpath($form->createView(), ['attr' => ['class' => 'my&class']],
             '/select
     [@name="name"]
     [@class="my&class form-control"]
-    [@required="required"]
+    [@required=""]
     [
         ./option[@value=""][not(@selected)][not(@disabled)]'.$placeholderHidden.'[.="[trans]Test&Me[/trans]"]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -806,10 +806,10 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             '/select
     [@name="name"]
     [@class="my&class form-control"]
-    [@required="required"]
+    [@required=""]
     [
         ./option[@value=""][not(@selected)][not(@disabled)][not(@hidden)][.=""]
-        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        /following-sibling::option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=3]
@@ -834,7 +834,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [@class="my&class form-control"]
     [./optgroup[@label="[trans]Group&1[/trans]"]
         [
-            ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+            ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
             /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
         ]
         [count(./option)=2]
@@ -861,10 +861,10 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             '/select
     [@name="name[]"]
     [@class="my&class form-control"]
-    [@required="required"]
-    [@multiple="multiple"]
+    [@required=""]
+    [@multiple=""]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -886,10 +886,10 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             '/select
     [@name="name[]"]
     [@class="my&class form-control"]
-    [@required="required"]
-    [@multiple="multiple"]
+    [@required=""]
+    [@multiple=""]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][@class="foo&bar"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -910,9 +910,9 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             '/select
     [@name="name[]"]
     [@class="my&class form-control"]
-    [@multiple="multiple"]
+    [@multiple=""]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -933,9 +933,9 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             '/select
     [@name="name[]"]
     [@class="my&class form-control"]
-    [@multiple="multiple"]
+    [@multiple=""]
     [
-        ./option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+        ./option[@value="&a"][@selected=""][.="[trans]Choice&A[/trans]"]
         /following-sibling::option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
     ]
     [count(./option)=2]
@@ -1559,7 +1559,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             '/select
     [@name="name"]
     [@class="my&class form-control"]
-    [./option[@value="AT"][@selected="selected"][.="Austria"]]
+    [./option[@value="AT"][@selected=""][.="Austria"]]
     [count(./option)>200]
 '
         );
@@ -1577,7 +1577,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [@name="name"]
     [@class="my&class form-control"]
     [./option[@value=""][not(@selected)][not(@disabled)][.="[trans]Select&Country[/trans]"]]
-    [./option[@value="AT"][@selected="selected"][.="Austria"]]
+    [./option[@value="AT"][@selected=""][.="Austria"]]
     [count(./option)>201]
 '
         );
@@ -1597,23 +1597,23 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         ./select
             [@id="name_date_month"]
             [@class="form-control"]
-            [./option[@value="2"][@selected="selected"]]
+            [./option[@value="2"][@selected=""]]
         /following-sibling::select
             [@id="name_date_day"]
             [@class="form-control"]
-            [./option[@value="3"][@selected="selected"]]
+            [./option[@value="3"][@selected=""]]
         /following-sibling::select
             [@id="name_date_year"]
             [@class="form-control"]
-            [./option[@value="'.date('Y').'"][@selected="selected"]]
+            [./option[@value="'.date('Y').'"][@selected=""]]
         /following-sibling::select
             [@id="name_time_hour"]
             [@class="form-control"]
-            [./option[@value="4"][@selected="selected"]]
+            [./option[@value="4"][@selected=""]]
         /following-sibling::select
             [@id="name_time_minute"]
             [@class="form-control"]
-            [./option[@value="5"][@selected="selected"]]
+            [./option[@value="5"][@selected=""]]
     ]
     [count(.//select)=5]
 '
@@ -1676,23 +1676,23 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         ./select
             [@id="name_date_month"]
             [@class="form-control"]
-            [./option[@value="2"][@selected="selected"]]
+            [./option[@value="2"][@selected=""]]
         /following-sibling::select
             [@id="name_date_day"]
             [@class="form-control"]
-            [./option[@value="3"][@selected="selected"]]
+            [./option[@value="3"][@selected=""]]
         /following-sibling::select
             [@id="name_date_year"]
             [@class="form-control"]
-            [./option[@value="'.date('Y').'"][@selected="selected"]]
+            [./option[@value="'.date('Y').'"][@selected=""]]
         /following-sibling::select
             [@id="name_time_hour"]
             [@class="form-control"]
-            [./option[@value="4"][@selected="selected"]]
+            [./option[@value="4"][@selected=""]]
         /following-sibling::select
             [@id="name_time_minute"]
             [@class="form-control"]
-            [./option[@value="5"][@selected="selected"]]
+            [./option[@value="5"][@selected=""]]
     ]
     [count(.//select)=5]
 '
@@ -1714,27 +1714,27 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         ./select
             [@id="name_date_month"]
             [@class="form-control"]
-            [./option[@value="2"][@selected="selected"]]
+            [./option[@value="2"][@selected=""]]
         /following-sibling::select
             [@id="name_date_day"]
             [@class="form-control"]
-            [./option[@value="3"][@selected="selected"]]
+            [./option[@value="3"][@selected=""]]
         /following-sibling::select
             [@id="name_date_year"]
             [@class="form-control"]
-            [./option[@value="'.date('Y').'"][@selected="selected"]]
+            [./option[@value="'.date('Y').'"][@selected=""]]
         /following-sibling::select
             [@id="name_time_hour"]
             [@class="form-control"]
-            [./option[@value="4"][@selected="selected"]]
+            [./option[@value="4"][@selected=""]]
         /following-sibling::select
             [@id="name_time_minute"]
             [@class="form-control"]
-            [./option[@value="5"][@selected="selected"]]
+            [./option[@value="5"][@selected=""]]
         /following-sibling::select
             [@id="name_time_second"]
             [@class="form-control"]
-            [./option[@value="6"][@selected="selected"]]
+            [./option[@value="6"][@selected=""]]
     ]
     [count(.//select)=6]
 '
@@ -1808,15 +1808,15 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         ./select
             [@id="name_month"]
             [@class="form-control"]
-            [./option[@value="2"][@selected="selected"]]
+            [./option[@value="2"][@selected=""]]
         /following-sibling::select
             [@id="name_day"]
             [@class="form-control"]
-            [./option[@value="3"][@selected="selected"]]
+            [./option[@value="3"][@selected=""]]
         /following-sibling::select
             [@id="name_year"]
             [@class="form-control"]
-            [./option[@value="'.date('Y').'"][@selected="selected"]]
+            [./option[@value="'.date('Y').'"][@selected=""]]
     ]
     [count(./select)=3]
 '
@@ -1948,15 +1948,15 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         ./select
             [@id="name_month"]
             [@class="form-control"]
-            [./option[@value="2"][@selected="selected"]]
+            [./option[@value="2"][@selected=""]]
         /following-sibling::select
             [@id="name_day"]
             [@class="form-control"]
-            [./option[@value="3"][@selected="selected"]]
+            [./option[@value="3"][@selected=""]]
         /following-sibling::select
             [@id="name_year"]
             [@class="form-control"]
-            [./option[@value="2000"][@selected="selected"]]
+            [./option[@value="2000"][@selected=""]]
     ]
     [count(./select)=3]
 '
@@ -1980,17 +1980,17 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             [@id="name_month"]
             [@class="form-control"]
             [./option[@value=""][not(@selected)][not(@disabled)][.=""]]
-            [./option[@value="1"][@selected="selected"]]
+            [./option[@value="1"][@selected=""]]
         /following-sibling::select
             [@id="name_day"]
             [@class="form-control"]
             [./option[@value=""][not(@selected)][not(@disabled)][.=""]]
-            [./option[@value="1"][@selected="selected"]]
+            [./option[@value="1"][@selected=""]]
         /following-sibling::select
             [@id="name_year"]
             [@class="form-control"]
             [./option[@value=""][not(@selected)][not(@disabled)][.=""]]
-            [./option[@value="1950"][@selected="selected"]]
+            [./option[@value="1950"][@selected=""]]
     ]
     [count(./select)=3]
 '
@@ -2054,7 +2054,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [@type="text"]
     [@name="name"]
     [@class="my&class form-control"]
-    [@disabled="disabled"]
+    [@disabled=""]
 '
         );
     }
@@ -2097,7 +2097,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             '/select
     [@name="name"]
     [@class="my&class form-control"]
-    [./option[@value="de"][@selected="selected"][.="German"]]
+    [./option[@value="de"][@selected=""][.="German"]]
     [count(./option)>200]
 '
         );
@@ -2111,7 +2111,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             '/select
     [@name="name"]
     [@class="my&class form-control"]
-    [./option[@value="de_AT"][@selected="selected"][.="German (Austria)"]]
+    [./option[@value="de_AT"][@selected=""][.="German (Austria)"]]
     [count(./option)>200]
 '
         );
@@ -2328,7 +2328,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
                     [@type="radio"]
                     [@name="name"]
                     [@class="my&class"]
-                    [@checked="checked"]
+                    [@checked=""]
                     [@value="1"]
             ]
     ]
@@ -2509,12 +2509,12 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             [@id="name_hour"]
             [@class="form-control"]
             [not(@size)]
-            [./option[@value="4"][@selected="selected"]]
+            [./option[@value="4"][@selected=""]]
         /following-sibling::select
             [@id="name_minute"]
             [@class="form-control"]
             [not(@size)]
-            [./option[@value="5"][@selected="selected"]]
+            [./option[@value="5"][@selected=""]]
     ]
     [count(./select)=2]
 '
@@ -2537,19 +2537,19 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             [@id="name_hour"]
             [@class="form-control"]
             [not(@size)]
-            [./option[@value="4"][@selected="selected"]]
+            [./option[@value="4"][@selected=""]]
             [count(./option)>23]
         /following-sibling::select
             [@id="name_minute"]
             [@class="form-control"]
             [not(@size)]
-            [./option[@value="5"][@selected="selected"]]
+            [./option[@value="5"][@selected=""]]
             [count(./option)>59]
         /following-sibling::select
             [@id="name_second"]
             [@class="form-control"]
             [not(@size)]
-            [./option[@value="6"][@selected="selected"]]
+            [./option[@value="6"][@selected=""]]
             [count(./option)>59]
     ]
     [count(./select)=3]
@@ -2574,7 +2574,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             [@name="name[hour]"]
             [@class="form-control"]
             [@value="04"]
-            [@required="required"]
+            [@required=""]
             [not(@size)]
         /following-sibling::input
             [@type="text"]
@@ -2582,7 +2582,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
             [@name="name[minute]"]
             [@class="form-control"]
             [@value="05"]
-            [@required="required"]
+            [@required=""]
             [not(@size)]
     ]
     [count(./input)=2]
@@ -2673,7 +2673,7 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
     [@name="name"]
     [@class="my&class form-control"]
     [not(@required)]
-    [./option[@value="Europe/Vienna"][@selected="selected"][.="Europe / Vienna"]]
+    [./option[@value="Europe/Vienna"][@selected=""][.="Europe / Vienna"]]
     [count(.//option)>200]
 '
         );
@@ -2800,10 +2800,10 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         $html = $this->renderWidget($form->createView());
 
         // compare plain HTML to check the whitespace
-        $this->assertSame('<input type="text" id="text" name="text" disabled="disabled" required="required" readonly="readonly" maxlength="10" pattern="\d+" class="foobar form-control" data-foo="bar" value="value" />', $html);
+        $this->assertSame('<input type="text" id="text" name="text" disabled="" required="" readonly="" maxlength="10" pattern="\d+" class="foobar form-control" data-foo="bar" value="value" />', $html);
     }
 
-    public function testWidgetAttributeNameRepeatedIfTrue()
+    public function testWidgetAttributeEmptyValueIfTrue()
     {
         $form = $this->factory->createNamed('text', 'Symfony\Component\Form\Extension\Core\Type\TextType', 'value', [
             'attr' => ['foo' => true],
@@ -2811,8 +2811,8 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
 
         $html = $this->renderWidget($form->createView());
 
-        // foo="foo"
-        $this->assertSame('<input type="text" id="text" name="text" required="required" foo="foo" class="form-control" value="value" />', $html);
+        // foo=""
+        $this->assertSame('<input type="text" id="text" name="text" required="" foo="" class="form-control" value="value" />', $html);
     }
 
     public function testButtonAttributes()
@@ -2825,10 +2825,10 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         $html = $this->renderWidget($form->createView());
 
         // compare plain HTML to check the whitespace
-        $this->assertSame('<button type="button" id="button" name="button" disabled="disabled" class="foobar btn" data-foo="bar">[trans]Button[/trans]</button>', $html);
+        $this->assertSame('<button type="button" id="button" name="button" disabled="" class="foobar btn" data-foo="bar">[trans]Button[/trans]</button>', $html);
     }
 
-    public function testButtonAttributeNameRepeatedIfTrue()
+    public function testButtonAttributeEmptyValueIfTrue()
     {
         $form = $this->factory->createNamed('button', 'Symfony\Component\Form\Extension\Core\Type\ButtonType', null, [
             'attr' => ['foo' => true],
@@ -2836,8 +2836,8 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
 
         $html = $this->renderWidget($form->createView());
 
-        // foo="foo"
-        $this->assertSame('<button type="button" id="button" name="button" foo="foo" class="btn-default btn">[trans]Button[/trans]</button>', $html);
+        // foo=""
+        $this->assertSame('<button type="button" id="button" name="button" foo="" class="btn-default btn">[trans]Button[/trans]</button>', $html);
     }
 
     public function testTel()
@@ -2923,11 +2923,11 @@ abstract class AbstractBootstrap3LayoutTestCase extends AbstractLayoutTestCase
         ./select
             [@id="name_year"]
             [@class="form-control"]
-            [./option[@value="'.$data['year'].'"][@selected="selected"]]
+            [./option[@value="'.$data['year'].'"][@selected=""]]
         /following-sibling::select
             [@id="name_week"]
             [@class="form-control"]
-            [./option[@value="'.$data['week'].'"][@selected="selected"]]
+            [./option[@value="'.$data['week'].'"][@selected=""]]
     ]
     [count(.//select)=2]'
         );

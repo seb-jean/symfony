@@ -207,6 +207,30 @@ Tui
 TwigBridge
 ----------
 
+ * The built-in form themes render their attributes with the [`html_attr`](https://twig.symfony.com/doc/3.x/functions/html_attr.html)
+   function, which requires `twig/html-extra` ^3.24. That package is now a dependency of `symfony/twig-bridge`, and
+   TwigBundle registers `Twig\Extra\Html\HtmlExtension` (as the `twig.extension.html` service, the id used by
+   `twig/extra-bundle`, so the extension is still registered only once). When rendering forms with a standalone Twig
+   environment, add the extension yourself: `$twig->addExtension(new HtmlExtension())`. This has the following
+   consequences:
+
+   * [BC BREAK] Boolean attributes are rendered with an empty value instead of repeating their name:
+     `<input required="" disabled="">` instead of `<input required="required" disabled="disabled">`. This is
+     equivalent in HTML 5, but functional tests asserting the rendered markup have to be updated. The same
+     applies to `checked`, `selected`, `multiple`, `hidden`, `formnovalidate` and to any attribute set to
+     `true` through the `attr` option
+   * [BC BREAK] The `attributes`, `widget_attributes`, `widget_container_attributes` and `button_attributes`
+     blocks now render nothing when there is no attribute to render, and prefix themselves with a space
+     otherwise. Custom themes calling them must drop the space they used to write themselves:
+     `<div {{ block('widget_container_attributes') }}>` becomes `<div{{ block('widget_container_attributes') }}>`
+   * An `id`, `name` or `value` set through the `attr` option now overrides the one computed by the form
+     instead of being rendered as a second, duplicate attribute
+   * An attribute set to `null` through the `attr` option is no longer rendered; `attr: {placeholder: null}`
+     used to render `placeholder=""`
+   * Attribute values that are arrays are rendered as space-separated token lists (`attr: {class: ['a', 'b']}`
+     renders `class="a b"`), `data-*` attributes with non-scalar values are JSON-encoded, `style` accepts a
+     mapping of CSS properties, and booleans on `aria-*` attributes render as `"true"`/`"false"`
+   * Attribute names are escaped with the `html_attr_relaxed` strategy, which preserves `:`, `@`, `[` and `]`
  * `form_start()` renders an `id` attribute on the `<form>` element when a child uses the `form_attr` option,
    taken from the new `form_id` view variable. Forms that do not use it render as before. Set `attr.id` on
    the root form to choose the id, or `attr: {id: false}` to render none. A custom theme overriding the

@@ -20,6 +20,7 @@ use Symfony\Component\Form\Extension\Core\Type\MoneyType;
 use Symfony\Component\Form\FormRenderer;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 use Twig\Environment;
+use Twig\Extra\Html\HtmlExtension;
 use Twig\Loader\FilesystemLoader;
 
 /**
@@ -61,6 +62,7 @@ class FormExtensionBootstrap5LayoutTest extends AbstractBootstrap5LayoutTestCase
         ]), ['strict_variables' => true]);
         $environment->addExtension(new TranslationExtension(new StubTranslator()));
         $environment->addExtension(new FormExtension());
+        $environment->addExtension(new HtmlExtension());
         $environment->setCharset('ISO-8859-1');
 
         $rendererEngine = new TwigRendererEngine([
@@ -75,7 +77,7 @@ class FormExtensionBootstrap5LayoutTest extends AbstractBootstrap5LayoutTestCase
             ->createView();
 
         self::assertSame(<<<'HTML'
-            <div class="input-group "><span class="input-group-text">&euro; </span><input type="text" id="name" name="name" required="required" inputmode="decimal" class="form-control" /></div>
+            <div class="input-group "><span class="input-group-text">&euro; </span><input type="text" id="name" name="name" required="" inputmode="decimal" class="form-control" /></div>
             HTML,
             trim($this->renderWidget($view))
         );

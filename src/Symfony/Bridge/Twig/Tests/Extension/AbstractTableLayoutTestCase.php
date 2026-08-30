@@ -413,14 +413,14 @@ abstract class AbstractTableLayoutTestCase extends AbstractLayoutTestCase
                 ./td
                     [./label[@for="name_first"][.="[trans]Test[/trans]"]]
                 /following-sibling::td
-                    [./input[@type="password"][@id="name_first"][@required="required"]]
+                    [./input[@type="password"][@id="name_first"][@required=""]]
             ]
         /following-sibling::tr
             [
                 ./td
                     [./label[@for="name_second"][.="[trans]Test2[/trans]"]]
                 /following-sibling::td
-                    [./input[@type="password"][@id="name_second"][@required="required"]]
+                    [./input[@type="password"][@id="name_second"][@required=""]]
             ]
         /following-sibling::tr[@style="display: none"]
             [./td[@colspan="2"]/input
@@ -522,7 +522,7 @@ abstract class AbstractTableLayoutTestCase extends AbstractLayoutTestCase
         $this->assertStringContainsString('<table id="form" class="foobar" data-foo="bar">', $html);
     }
 
-    public function testWidgetContainerAttributeNameRepeatedIfTrue()
+    public function testWidgetContainerAttributeEmptyValueIfTrue()
     {
         $form = $this->factory->createNamed('form', 'Symfony\Component\Form\Extension\Core\Type\FormType', null, [
             'attr' => ['foo' => true],
@@ -530,7 +530,7 @@ abstract class AbstractTableLayoutTestCase extends AbstractLayoutTestCase
 
         $html = $this->renderWidget($form->createView());
 
-        // foo="foo"
-        $this->assertStringContainsString('<table id="form" foo="foo">', $html);
+        // foo=""
+        $this->assertStringContainsString('<table id="form" foo="">', $html);
     }
 }
