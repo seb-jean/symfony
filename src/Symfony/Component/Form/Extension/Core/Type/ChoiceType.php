@@ -46,6 +46,7 @@ use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
+use Symfony\Component\Intl\Collator;
 use Symfony\Component\OptionsResolver\Options;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\PropertyAccess\PropertyPath;
@@ -58,6 +59,7 @@ class ChoiceType extends AbstractType
     public function __construct(
         ?ChoiceListFactoryInterface $choiceListFactory = null,
         private ?TranslatorInterface $translator = null,
+        private ?Collator $collator = null,
     ) {
         $this->choiceListFactory = $choiceListFactory ?? new CachingFactoryDecorator(
             new PropertyAccessDecorator(
@@ -352,10 +354,24 @@ class ChoiceType extends AbstractType
 
         $placeholderAttr = static fn (Options $options) => $options['required'] ? ['hidden' => true] : [];
 
+        $collator = $this->collator;
+        $choicesNormalizer = static function (Options $options, $choices) use ($collator) {
+            if (!$options['sort_localized'] || null === $collator || !\is_array($choices) || !$choices) {
+                return $choices;
+            }
+
+            if (\is_array(reset($choices))) {
+                return $choices;
+            }
+
+            return array_is_list($choices) ? $collator->sort($choices) : $collator->sortKeys($choices);
+        };
+
         $resolver->setDefaults([
             'multiple' => false,
             'expanded' => false,
             'choices' => [],
+            'sort_localized' => false,
             'choice_filter' => null,
             'choice_lazy' => false,
             'choice_loader' => null,
@@ -387,8 +403,10 @@ class ChoiceType extends AbstractType
         $resolver->setNormalizer('placeholder', $placeholderNormalizer);
         $resolver->setNormalizer('choice_translation_domain', $choiceTranslationDomainNormalizer);
         $resolver->setNormalizer('choice_loader', $choiceLoaderNormalizer);
+        $resolver->setNormalizer('choices', $choicesNormalizer);
 
         $resolver->setAllowedTypes('choices', ['null', 'array', \Traversable::class]);
+        $resolver->setAllowedTypes('sort_localized', 'bool');
         $resolver->setAllowedTypes('choice_translation_domain', ['null', 'bool', 'string']);
         $resolver->setAllowedTypes('choice_lazy', 'bool');
         $resolver->setAllowedTypes('choice_loader', ['null', ChoiceLoaderInterface::class, ChoiceLoader::class]);
