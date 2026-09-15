@@ -41,6 +41,7 @@ use Symfony\Component\Form\FormRegistryInterface;
 use Symfony\Component\Form\ResolvedFormTypeFactory;
 use Symfony\Component\Form\ResolvedFormTypeFactoryInterface;
 use Symfony\Component\Form\Util\ServerParams;
+use Symfony\Component\Intl\Collator;
 
 return static function (ContainerConfigurator $container) {
     $container->services()
@@ -115,6 +116,7 @@ return static function (ContainerConfigurator $container) {
             ->args([
                 service('form.choice_list_factory'),
                 service('translator')->ignoreOnInvalid(),
+                class_exists(Collator::class) ? service(Collator::class)->ignoreOnInvalid() : null,
             ])
             ->tag('form.type')
 
@@ -178,4 +180,11 @@ return static function (ContainerConfigurator $container) {
             ])
             ->tag('form.type_extension')
     ;
+
+    if (class_exists(Collator::class)) {
+        $container->services()
+            ->set(Collator::class)
+                ->args([service('translator')->ignoreOnInvalid()])
+        ;
+    }
 };
