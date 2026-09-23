@@ -5,6 +5,7 @@ CHANGELOG
 ---
 
  * Guess the `empty_data` option from the type of the mapped property when that type refuses `null`
+ * Add the `sort_localized` option to `ChoiceType` to sort the choices by their translated label, using the collation rules of the current locale
  * Add `BoundsType` to render a lower and an upper bound of the same inner type
  * Add `#[AsFormType]` and `#[FormField]` attributes to derive a form type from the properties of a data class
  * Add the `allow_array_submission` option to let `PRE_SUBMIT` listeners turn a submitted array into data the form accepts
