@@ -89,6 +89,18 @@ class HtmlSanitizerAllTest extends TestCase
                 'Lorem & Ipsum',
                 'Lorem &amp; Ipsum',
             ],
+            [
+                'Lorem "ipsum" \'dolor\' > sit = amet + consectetur @ adipiscing `elit` ＜＞＋＝＠｀',
+                'Lorem &#34;ipsum&#34; &#039;dolor&#039; &gt; sit &#61; amet &#43; consectetur &#64; adipiscing &#96;elit&#96; &#xFF1C;&#xFF1E;&#xFF0B;&#xFF1D;&#xFF20;&#xFF40;',
+            ],
+            [
+                "Lorem\r\nipsum\rdolor\nsit\r\n",
+                "Lorem\nipsum\ndolor\nsit\n",
+            ],
+            [
+                " \r\n\t",
+                '',
+            ],
 
             // Unknown tag
             [
@@ -598,6 +610,29 @@ class HtmlSanitizerAllTest extends TestCase
         ];
     }
 
+    #[DataProvider('provideSanitizeForContext')]
+    public function testSanitizeForContext(string $context, string $input, string $expected)
+    {
+        $this->assertSame($expected, $this->createSanitizer()->sanitizeFor($context, $input));
+    }
+
+    public static function provideSanitizeForContext(): iterable
+    {
+        return [
+            ['caption', '<b>Lorem</b> ipsum<td>dolor</td>', '<b>Lorem</b> ipsumdolor'],
+            ['col', '<b>Lorem</b> ipsum', '<b>Lorem</b> ipsum'],
+            ['colgroup', '<col span="2" />Lorem ipsum', '<col span="2" />'],
+            ['image', '<b>Lorem</b> ipsum', '<b>Lorem</b> ipsum'],
+            ['plaintext', '<b>Lorem</b> ipsum', '&lt;b&gt;Lorem&lt;/b&gt; ipsum'],
+            ['tbody', '<tr><td>Lorem ipsum</td></tr>', '<tr><td>Lorem ipsum</td></tr>'],
+            ['td', '<b>Lorem</b> ipsum<td>dolor</td>', '<b>Lorem</b> ipsumdolor'],
+            ['tfoot', '<tr><td>Lorem ipsum</td></tr>', '<tr><td>Lorem ipsum</td></tr>'],
+            ['th', '<b>Lorem</b> ipsum', '<b>Lorem</b> ipsum'],
+            ['thead', '<tr><th>Lorem ipsum</th></tr>', '<tr><th>Lorem ipsum</th></tr>'],
+            ['tr', '<td>Lorem</td><th>ipsum</th>', '<td>Lorem</td><th>ipsum</th>'],
+        ];
+    }
+
     public function testIFrameDefaultsAreSafe()
     {
         $sanitizer = new HtmlSanitizer((new HtmlSanitizerConfig())
@@ -645,5 +680,14 @@ class HtmlSanitizerAllTest extends TestCase
 
         $sanitizer = new HtmlSanitizer($config);
         self::assertSame('<foo><div><p><a>Hello</a></p></div></foo>', $sanitizer->sanitize('<foo data-attr="value"><div class="foo"><p><a target="_blank">Hello<span> World</span></a></p></div></foo>'));
+    }
+
+    public function testAllowByDefaultSkipsComments()
+    {
+        $config = (new HtmlSanitizerConfig())
+            ->defaultAction(HtmlSanitizerAction::Allow);
+
+        $sanitizer = new HtmlSanitizer($config);
+        self::assertSame('a<p>b</p>d', $sanitizer->sanitize('a<!-- secret --><p>b<?php echo 1 ?></p><![CDATA[c]]>d'));
     }
 }

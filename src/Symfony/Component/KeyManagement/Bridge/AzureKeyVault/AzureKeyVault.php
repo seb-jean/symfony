@@ -25,6 +25,7 @@ use Symfony\Component\KeyManagement\Exception\UnsupportedOperationException;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
  * KMS backend powered by Azure Key Vault (and Managed HSM) over its REST API.
@@ -52,9 +53,9 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *
  * On the decrypt path, HTTP 400 and 404 are masked as
  * {@see DecryptionFailedException} so that an unknown key id or a tampered
- * ciphertext cannot be distinguished by an attacker. Auth (401/403),
- * throttling (429) and server errors (5xx) bubble up as
- * {@see RuntimeException} so operators see the real cause.
+ * ciphertext cannot be distinguished by an attacker.
+ * A 401 invalidates the token and is retried once with a new token.
+ * Auth failures that remain, throttling (429) and server errors (5xx) bubble up as {@see RuntimeException} so operators see the real cause.
  *
  * @author Florent Morselli <florent.morselli@spomky-labs.com>
  *
@@ -63,6 +64,9 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final class AzureKeyVault implements DecrypterInterface, EncrypterInterface, DataKeyGeneratorInterface
 {
     private const array AEAD_ALGORITHMS = ['A128GCM', 'A192GCM', 'A256GCM'];
+
+    // See https://learn.microsoft.com/azure/key-vault/general/about-keys-secrets-certificates#object-identifiers
+    private const string KEY_ID_PATTERN = '~\A([0-9A-Za-z-]{1,127})(?:/(?1))?\z~';
 
     public function __construct(
         private readonly HttpClientInterface $client,
@@ -201,9 +205,7 @@ final class AzureKeyVault implements DecrypterInterface, EncrypterInterface, Dat
 
     private static function isKeyId(string $keyId): bool
     {
-        $segments = explode('/', $keyId);
-
-        return \count($segments) <= 2 && !\in_array('', $segments, true);
+        return 1 === preg_match(self::KEY_ID_PATTERN, $keyId);
     }
 
     /**
@@ -263,18 +265,34 @@ final class AzureKeyVault implements DecrypterInterface, EncrypterInterface, Dat
      */
     private function request(string $method, string $path, array $body, string $keyId, bool $treatClientErrorAsDecryptionFailure = false): array
     {
-        try {
-            $response = $this->client->request($method, $path, [
-                'headers' => [
-                    'Authorization' => 'Bearer '.$this->tokens->getToken(),
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => $body,
-            ]);
-            $status = $response->getStatusCode();
-        } catch (TransportExceptionInterface $e) {
-            throw new RuntimeException('Failed to reach Azure Key Vault.', 0, $e);
+        $token = $this->getToken();
+        $response = $this->send($method, $path, $body, $token);
+
+        if (401 === $response->getStatusCode()) {
+            $this->tokens->invalidateToken($token);
+
+            try {
+                $newToken = $this->getToken();
+            } catch (\Throwable $e) {
+                $response->cancel();
+
+                throw $e;
+            }
+
+            if ($newToken === $token) {
+                // retrying with the same token cannot succeed, and it must not stay cached for the next call
+                $this->tokens->invalidateToken($newToken);
+            } else {
+                $response->cancel();
+                $response = $this->send($method, $path, $body, $newToken);
+
+                if (401 === $response->getStatusCode()) {
+                    $this->tokens->invalidateToken($newToken);
+                }
+            }
         }
+
+        $status = $response->getStatusCode();
 
         if ($treatClientErrorAsDecryptionFailure && (400 === $status || 404 === $status)) {
             throw new DecryptionFailedException();
@@ -303,5 +321,32 @@ final class AzureKeyVault implements DecrypterInterface, EncrypterInterface, Dat
         } catch (TransportExceptionInterface $e) {
             throw new RuntimeException(\sprintf('Failed to read the Azure Key Vault response (HTTP %d) for "%s".', $status, $response->getInfo('url')), 0, $e);
         }
+    }
+
+    private function getToken(): string
+    {
+        try {
+            return $this->tokens->getToken();
+        } catch (TransportExceptionInterface $e) {
+            throw new RuntimeException('Failed to reach Azure Key Vault.', 0, $e);
+        }
+    }
+
+    private function send(string $method, string $path, array $body, #[\SensitiveParameter] string $token): ResponseInterface
+    {
+        try {
+            $response = $this->client->request($method, $path, [
+                'headers' => [
+                    'Authorization' => 'Bearer '.$token,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => $body,
+            ]);
+            $response->getStatusCode();
+        } catch (TransportExceptionInterface $e) {
+            throw new RuntimeException('Failed to reach Azure Key Vault.', 0, $e);
+        }
+
+        return $response;
     }
 }

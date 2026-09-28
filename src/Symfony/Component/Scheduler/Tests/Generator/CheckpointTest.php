@@ -12,13 +12,16 @@
 namespace Symfony\Component\Scheduler\Tests\Generator;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Cache\CacheItemInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Lock\Key;
 use Symfony\Component\Lock\Lock;
 use Symfony\Component\Lock\LockInterface;
 use Symfony\Component\Lock\NoLock;
 use Symfony\Component\Lock\Store\InMemoryStore;
+use Symfony\Component\Scheduler\Exception\RuntimeException;
 use Symfony\Component\Scheduler\Generator\Checkpoint;
+use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
 class CheckpointTest extends TestCase
@@ -210,6 +213,46 @@ class CheckpointTest extends TestCase
         $this->assertEquals($savedIndex, $two->index());
         $this->assertTrue($lock->isAcquired());
         $this->assertFalse($concurrentLock->isAcquired());
+    }
+
+    public function testWithCacheThrowsWhenStateCannotBeSaved()
+    {
+        $cache = new class extends ArrayAdapter {
+            public function save(CacheItemInterface $item): bool
+            {
+                return false;
+            }
+        };
+        $checkpoint = new Checkpoint('cache', new NoLock(), $cache);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Failed to save the "cache" scheduler checkpoint');
+
+        $checkpoint->acquire(new \DateTimeImmutable('2020-02-20 20:20:20Z'));
+    }
+
+    public function testWithCacheInterfaceThrowsWhenStateCannotBeSaved()
+    {
+        $cache = new class implements CacheInterface {
+            public function get(string $key, callable $callback, ?float $beta = null, ?array &$metadata = null): mixed
+            {
+                $save = true;
+                $metadata = [ItemInterface::METADATA_SAVE_FAILED => true];
+
+                return $callback((new ArrayAdapter())->getItem($key), $save);
+            }
+
+            public function delete(string $key): bool
+            {
+                return true;
+            }
+        };
+        $checkpoint = new Checkpoint('cache', new NoLock(), $cache);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Failed to save the "cache" scheduler checkpoint');
+
+        $checkpoint->acquire(new \DateTimeImmutable('2020-02-20 20:20:20Z'));
     }
 
     public function testWithLockKeepLock()

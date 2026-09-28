@@ -64,6 +64,22 @@ final class MetadataAwareNameConverterTest extends TestCase
         $this->assertEquals($expected, $nameConverter->normalize($propertyName, SerializedNameDummy::class));
     }
 
+    public function testNormalizeCallsTheFallbackEachTime()
+    {
+        $fallback = $this->createStub(NameConverterInterface::class);
+        $fallback
+            ->method('normalize')
+            ->willReturnCallback(static fn ($propertyName, $class, $format) => $propertyName.'_'.$format)
+        ;
+
+        $nameConverter = new MetadataAwareNameConverter(new ClassMetadataFactory(new AttributeLoader()), $fallback);
+
+        $this->assertSame('baz', $nameConverter->normalize('foo', SerializedNameDummy::class, 'json'));
+        $this->assertSame('baz', $nameConverter->normalize('foo', SerializedNameDummy::class, 'xml'));
+        $this->assertSame('quux_json', $nameConverter->normalize('quux', SerializedNameDummy::class, 'json'));
+        $this->assertSame('quux_xml', $nameConverter->normalize('quux', SerializedNameDummy::class, 'xml'));
+    }
+
     #[DataProvider('attributeProvider')]
     public function testDenormalize(string|int $expected, string|int $propertyName)
     {
@@ -282,6 +298,22 @@ final class MetadataAwareNameConverterTest extends TestCase
 
         $this->assertSame('quux', $nameConverter->normalize('qux', OtherSerializedNameDummy::class));
         $this->assertSame('qux', $nameConverter->denormalize('quux', OtherSerializedNameDummy::class));
+    }
+
+    public function testDenormalizeWithGroupsAndFalseCacheKey()
+    {
+        $nameConverter = new MetadataAwareNameConverter(new ClassMetadataFactory(new AttributeLoader()));
+
+        $this->assertSame('buz', $nameConverter->denormalize('buz', OtherSerializedNameDummy::class, null, ['groups' => ['a'], 'cache_key' => false]));
+        $this->assertSame('buzForExport', $nameConverter->denormalize('buz', OtherSerializedNameDummy::class, null, ['groups' => ['b'], 'cache_key' => false]));
+    }
+
+    public function testNormalizeWithGroupsAndFalseCacheKey()
+    {
+        $nameConverter = new MetadataAwareNameConverter(new ClassMetadataFactory(new AttributeLoader()));
+
+        $this->assertSame('puxi', $nameConverter->normalize('puux', OtherSerializedNameDummy::class, null, ['groups' => ['i'], 'cache_key' => false]));
+        $this->assertSame('puxa', $nameConverter->normalize('puux', OtherSerializedNameDummy::class, null, ['groups' => ['a'], 'cache_key' => false]));
     }
 
     public function testDenormalizeWithCacheContext()

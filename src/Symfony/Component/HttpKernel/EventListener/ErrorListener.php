@@ -47,8 +47,7 @@ class ErrorListener implements EventSubscriberInterface
 
     public function logKernelException(ExceptionEvent $event): void
     {
-        $throwable = $event->getThrowable();
-        $logLevel = $this->resolveLogLevel($throwable);
+        $originalThrowable = $throwable = $event->getThrowable();
         $logChannel = $this->resolveLogChannel($throwable);
 
         foreach ($this->exceptionsMapping as $class => $config) {
@@ -69,9 +68,10 @@ class ErrorListener implements EventSubscriberInterface
             $event->setThrowable($throwable);
         }
 
-        $e = FlattenException::createFromThrowable($throwable);
+        $logLevel = $this->resolveLogLevel($originalThrowable, $throwable);
+        $e = (new FlattenException())->setMessage($throwable->getMessage());
 
-        $this->logException($throwable, \sprintf('Uncaught PHP Exception %s: "%s" at %s line %s', $e->getClass(), $e->getMessage(), basename($e->getFile()), $e->getLine()), $logLevel, $logChannel);
+        $this->logException($throwable, \sprintf('Uncaught PHP Exception %s: "%s" at %s line %s', get_debug_type($throwable), $e->getMessage(), basename($throwable->getFile()), $throwable->getLine()), $logLevel, $logChannel);
     }
 
     public function onKernelException(ExceptionEvent $event): void
@@ -98,9 +98,9 @@ class ErrorListener implements EventSubscriberInterface
         try {
             $response = $event->getKernel()->handle($request, HttpKernelInterface::SUB_REQUEST, false);
         } catch (\Exception $e) {
-            $f = FlattenException::createFromThrowable($e);
+            $f = (new FlattenException())->setMessage($e->getMessage());
 
-            $this->logException($e, \sprintf('Exception thrown when handling an exception (%s: %s at %s line %s)', $f->getClass(), $f->getMessage(), basename($e->getFile()), $e->getLine()));
+            $this->logException($e, \sprintf('Exception thrown when handling an exception (%s: %s at %s line %s)', get_debug_type($e), $f->getMessage(), basename($e->getFile()), $e->getLine()));
 
             $prev = $e;
             do {
@@ -174,7 +174,7 @@ class ErrorListener implements EventSubscriberInterface
     /**
      * Resolves the level to be used when logging the exception.
      */
-    private function resolveLogLevel(\Throwable $throwable): string
+    private function resolveLogLevel(\Throwable $throwable, ?\Throwable $convertedThrowable = null): string
     {
         foreach ($this->exceptionsMapping as $class => $config) {
             if ($throwable instanceof $class && $config['log_level']) {
@@ -186,11 +186,13 @@ class ErrorListener implements EventSubscriberInterface
             return $withLogLevel->level;
         }
 
+        $throwable = $convertedThrowable ?? $throwable;
+
         if (!$throwable instanceof HttpExceptionInterface || $throwable->getStatusCode() >= 500) {
             return LogLevel::CRITICAL;
         }
 
-        return LogLevel::ERROR;
+        return LogLevel::WARNING;
     }
 
     private function resolveLogChannel(\Throwable $throwable): ?string

@@ -156,6 +156,7 @@ class KeyManagementBundleExtensionTest extends TestCase
         $iterator = $locator->getTaggedIteratorArgument();
         $this->assertSame('key_management.flysystem', $iterator->getTag());
         $this->assertSame('key', $iterator->getIndexAttribute());
+        $this->assertSame([['method' => 'reset']], $container->getDefinition('key_management.factory.flysystem')->getTag('kernel.reset'));
     }
 
     public function testClientCanBeAServiceTheApplicationRegistered()
@@ -280,6 +281,23 @@ class KeyManagementBundleExtensionTest extends TestCase
         });
 
         $this->assertSame(DataKeyStore::DEFAULT_MAX_AGE_SECONDS, $container->getDefinition('key_management.store')->getArgument(6));
+    }
+
+    public function testStoreNeverRotatesWhenTheMaxAgeIsNull()
+    {
+        if (!class_exists(DataKeyStore::class)) {
+            $this->markTestSkipped('symfony/doctrine-dbal-key-management is not installed.');
+        }
+
+        $container = $this->createContainerFromClosure(static function (ContainerBuilder $container) {
+            $container->register('app.dbal', \stdClass::class);
+            $container->loadFromExtension('key_management', [
+                'clients' => ['app' => 'sodium://?keys[app]=Q0VkRUNVTk5VTkRJVUVDU1U='],
+                'store' => ['connection' => 'app.dbal', 'client' => 'app', 'key_id' => 'alias/app-key', 'max_age' => null],
+            ]);
+        });
+
+        $this->assertNull($container->getDefinition('key_management.store')->getArgument(6));
     }
 
     public function testWithoutAStoreRegistersNoSchemaListener()

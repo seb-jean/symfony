@@ -103,12 +103,22 @@ final class ObjectShapeType extends Type
         return true;
     }
 
+    /**
+     * @param-immediately-invoked-callable $mapper
+     */
+    public function map(callable $mapper): Type
+    {
+        $shape = array_map(static fn (array $item): array => array_replace($item, ['type' => $item['type']->map($mapper)]), $this->shape);
+
+        return $mapper($shape === $this->shape ? $this : new self($shape));
+    }
+
     public function __toString(): string
     {
         $items = [];
 
         foreach ($this->shape as $key => $value) {
-            $itemKey = \sprintf("'%s'", $key);
+            $itemKey = \sprintf("'%s'", addcslashes($key, "'\\"));
             if ($value['optional'] ?? false) {
                 $itemKey = \sprintf('%s?', $itemKey);
             }

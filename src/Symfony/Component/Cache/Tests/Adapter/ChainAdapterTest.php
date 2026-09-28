@@ -12,11 +12,13 @@
 namespace Symfony\Component\Cache\Tests\Adapter;
 
 use PHPUnit\Framework\Attributes\Group;
+use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\ChainAdapter;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
 use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\Cache\Exception\InvalidArgumentException;
 use Symfony\Component\Cache\Tests\Fixtures\ExternalAdapter;
@@ -302,6 +304,74 @@ class ChainAdapterTest extends AdapterTestCase
 
             return 'chain';
         });
+    }
+
+    public function testGetReturnsHitOfFirstAdapterWithItsMetadata()
+    {
+        $first = new ExternalAdapter();
+        $wrapper = "\xA9";
+        $first->save($first->getItem('foo')->set(new $wrapper('cached', [
+            CacheItem::METADATA_EXPIRY => time() + 1000,
+            CacheItem::METADATA_CTIME => 50,
+            CacheItem::METADATA_TAGS => ['bar' => 'bar'],
+        ])));
+
+        $cache = new ChainAdapter([$first, new ArrayAdapter()]);
+        $expectedMetadata = $cache->getItem('foo')->getMetadata();
+
+        $this->assertSame('cached', $cache->get('foo', function () {
+            $this->fail('Callback should not be called when the first adapter has the item');
+        }, null, $metadata));
+        $this->assertSame($expectedMetadata, $metadata);
+        $this->assertSame(['bar' => 'bar'], $metadata[CacheItem::METADATA_TAGS]);
+        $this->assertArrayHasKey(CacheItem::METADATA_CTIME, $metadata);
+    }
+
+    public function testGetRecomputesExpiredHitOfFirstAdapter()
+    {
+        $first = new ExternalAdapter();
+        $wrapper = "\xA9";
+        $first->save($first->getItem('foo')->set(new $wrapper('stale', [
+            CacheItem::METADATA_EXPIRY => time() - 1000,
+            CacheItem::METADATA_CTIME => 50,
+        ])));
+
+        $cache = new ChainAdapter([$first, new ArrayAdapter()]);
+
+        $this->assertSame('fresh', $cache->get('foo', static fn () => 'fresh'));
+        $this->assertSame('fresh', $cache->get('foo', function () {
+            $this->fail('Callback should not be called once the item is recomputed');
+        }));
+    }
+
+    public function testGetElectsHitForEarlyExpirationWithSingleAdapter()
+    {
+        $first = new ExternalAdapter();
+        $wrapper = "\xA9";
+        $first->save($first->getItem('foo')->set(new $wrapper('stale', [
+            CacheItem::METADATA_EXPIRY => time() + 1000,
+            CacheItem::METADATA_CTIME => 50,
+        ])));
+
+        $cache = new ChainAdapter([$first]);
+
+        $this->assertSame('fresh', $cache->get('foo', static fn () => 'fresh', \PHP_FLOAT_MAX));
+    }
+
+    public function testGetReportsFailedSavesOfLowerAdapters()
+    {
+        $failing = new class extends ArrayAdapter {
+            public function save(CacheItemInterface $item): bool
+            {
+                return false;
+            }
+        };
+        $cache = new ChainAdapter([new FilesystemTagAwareAdapter('a'), $failing]);
+        $cache->clear();
+
+        $this->assertSame('bar', $cache->get('foo', static fn () => 'bar', null, $metadata));
+        $this->assertTrue($metadata[CacheItem::METADATA_SAVE_FAILED]);
+        $this->assertArrayNotHasKey(CacheItem::METADATA_EXPIRY, (new FilesystemTagAwareAdapter('a'))->getItem('foo')->getMetadata());
     }
 
     private function getPruneableMock(): AdapterInterface

@@ -13,6 +13,8 @@ namespace Symfony\Component\Translation;
 
 use PhpParser\Parser;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
+use Symfony\Component\Config\Resource\ComposerResource;
+use Symfony\Component\Config\Resource\GlobResource;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\ConsoleBundle;
 use Symfony\Component\DependencyInjection\Alias;
@@ -198,6 +200,9 @@ class TranslationBundle extends AbstractBundle
         // the directories were collected from the filesystem as literals, the container needs them escaped
         $escapedTransPaths = $container->getParameterBag()->escapeValue($transPaths);
 
+        // the XLIFF files of vendor packages are validated by their own test suites, and the app can't fix them anyway
+        $container->getDefinition('translation.loader.xliff')->setArgument(0, $container->getParameterBag()->escapeValue((new ComposerResource())->getVendors()));
+
         if ($hasConsole) {
             $container->getDefinition('console.command.translation_xliff_update_sources')
                 ->replaceArgument(3, [...$config['paths'], $config['default_path']]);
@@ -294,7 +299,7 @@ class TranslationBundle extends AbstractBundle
 
         foreach ($container->getParameter('kernel.bundles_metadata') as $bundle) {
             $bundlePath = $parameterBag->unescapeValue($bundle['path']);
-            if ($container->fileExists($dir = $bundlePath.'/Resources/translations') || $container->fileExists($dir = $bundlePath.'/translations')) {
+            if (self::hasTranslationDir($container, $dir = $bundlePath.'/Resources/translations') || self::hasTranslationDir($container, $dir = $bundlePath.'/translations')) {
                 $dirs[] = $transPaths[] = $dir;
             } else {
                 $nonExistingDirs[] = $dir;
@@ -302,7 +307,7 @@ class TranslationBundle extends AbstractBundle
         }
 
         foreach ($config['paths'] as $dir) {
-            if (!$container->fileExists($dir)) {
+            if (!self::hasTranslationDir($container, $dir)) {
                 throw new \UnexpectedValueException(\sprintf('"%s" defined in translator.paths does not exist or is not a directory.', $dir));
             }
 
@@ -314,13 +319,14 @@ class TranslationBundle extends AbstractBundle
 
         if (null === $defaultDir) {
             // allow null
-        } elseif ($container->fileExists($defaultDir)) {
+        } elseif (self::hasTranslationDir($container, $defaultDir)) {
             $dirs[] = $defaultDir;
         } else {
             $nonExistingDirs[] = $defaultDir;
         }
 
-        return [$dirs, $transPaths, $nonExistingDirs];
+        // a directory can be listed more than once, e.g. by a component that ships a bundle, like the Validator
+        return [array_values(array_unique($dirs)), array_values(array_unique($transPaths)), array_values(array_unique($nonExistingDirs))];
     }
 
     private function buildResourceOptions(array $dirs, array $nonExistingDirs, ContainerBuilder $container): array
@@ -353,5 +359,19 @@ class TranslationBundle extends AbstractBundle
                 'scanned_directories' => $parameterBag->escapeValue(array_map(static fn ($dir) => str_starts_with($dir, $projectDir.'/') ? substr($dir, 1 + \strlen($projectDir)) : $dir, $scannedDirectories)),
             ],
         ];
+    }
+
+    /**
+     * Tracks the list of files in a translation directory, but not their contents, which the translator tracks in its own cache.
+     */
+    private static function hasTranslationDir(ContainerBuilder $container, string $dir): bool
+    {
+        if (!is_dir($dir)) {
+            return $container->fileExists($dir);
+        }
+
+        $container->addResource(new GlobResource($dir, '', true));
+
+        return true;
     }
 }

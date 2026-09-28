@@ -97,6 +97,10 @@ EventDispatcher
    to swap each one for a wrapper on the dispatcher it decorates and swap it back afterwards. It therefore no
    longer calls `dispatch()` on that dispatcher, so a custom implementation's own dispatching is bypassed
    while the profiler is watching
+ * `AsEventListener::$priority` is now `?int` and defaults to `null`, which means "no priority declared";
+   the `kernel.event_listener` tags it produces carry `null` too, and so does the `$priority` argument of
+   `AsControllerAttributeListener` and of the Workflow `As*Listener` attributes. Code that read the
+   property as an `int` should read `$attribute->priority ?? 0`
 
 Filesystem
 ----------
@@ -209,6 +213,7 @@ FrameworkBundle
    `Routing\AttributeRouteControllerLoader`, `Routing\DelegatingLoader` and
    `Routing\RedirectableCompiledUrlMatcher`, use their counterparts from the Routing component instead
  * Deprecate not setting the `framework.scheduler.use_messenger_routing` config option; it will default to `true` in 9.0
+ * The secrets vault no longer loads env vars when its directory is in the project but does not exist when the container is built (`config/secrets/` by default). The env var of `framework.secret` is then not derived from `SYMFONY_DECRYPTION_SECRET` anymore when it is empty or not defined: define it, or create the vault. In non-debug environments, clear the cache after creating the first vault
 
 HttpClient
 ----------
@@ -235,6 +240,12 @@ HttpKernel
    with `schemes: ['https']` was still acted upon when requested over plain HTTP with GET or HEAD.
    Only scheme redirects are affected; a trailing-slash redirect still goes through the controller
  * Deprecate the `HIncludeFragmentRenderer` class, use the `EsiFragmentRenderer` or `InlineFragmentRenderer`, or [Symfony UX Turbo](https://ux.symfony.com/turbo), instead
+ * `ErrorListener` logs exceptions whose HTTP status code is below 500 (client errors), including the ones given a
+   status code by `framework.exceptions` or `#[WithHttpStatus]`, at the `warning` level instead of `error`. They no
+   longer activate a `fingers_crossed` handler whose `action_level` is `error`, as in the Monolog recipe, and the logger
+   that HttpKernel registers when no other is installed no longer outputs them by default. Lower the `action_level` to
+   `warning`, set the `log_level` of `framework.exceptions` or use the `#[WithLogLevel]` attribute on the exception
+   class to keep the previous behavior
  * `Kernel::boot()` now iterates over the `$bundles` property instead of calling `getBundles()`, so that the
    bundles that have nothing to do at boot time are not instantiated
 
@@ -422,6 +433,7 @@ Serializer
    under `framework.serializer`
  * Deprecate denormalizing an array that is not a list into a `list`-typed property, in version 9.0 a `Symfony\Component\Serializer\Exception\NotNormalizableValueException` will be thrown when the input does not satisfy `array_is_list()`
  * Denormalize the elements of a union-typed collection, e.g. `array<Foo|Bar>`, instead of returning the raw data. An element that matches no member of the union, or a key whose type does not match, now throws instead of being returned as-is
+ * Deprecate denormalizing a property from its PHP name when a name converter maps it to another key (e.g. with `#[SerializedName]`), in version 9.0 such a key will be handled like any unknown key
 
 String
 ------
@@ -453,6 +465,19 @@ TwigBridge
    `form_start` block renders no id until that block is updated
  * Deprecate the `render_hinclude()` Twig function; use `render_esi()` or `render()`, or [Symfony UX Turbo](https://ux.symfony.com/turbo), instead
 
+TwigBundle
+----------
+
+ * The cache warmer compiles only the form themes of `TwigBridge` that are listed in `twig.form_themes`, named in templates, or used or extended by those.
+   A theme picked at runtime, through a variable in a `form_theme` tag or through `FormRenderer::setTheme()`, is compiled on first use.
+   When the cache directory is read-only, name such a theme in one of your templates, e.g. in a comment, to have it warmed up
+
+Uid
+---
+
+ * The component does not require `symfony/polyfill-uuid` anymore; require it if your code calls the `uuid_*()` functions without the `uuid` extension
+ * `UuidV1` uses a random node instead of the MAC address of the host, also when the `uuid` extension is installed
+
 Validator
 ---------
 
@@ -474,3 +499,8 @@ Validator
    ```
 
    In Symfony 8.2, the configured `mimeTypes` list is used as-is, while the `csv` extension is still enforced separately.
+
+Yaml
+----
+
+ * A custom tag on a block scalar requires the `Yaml::PARSE_CUSTOM_TAGS` flag, as on any other value; linting such files, Ansible `!vault |` values for example, needs the `--parse-tags` option of `lint:yaml`

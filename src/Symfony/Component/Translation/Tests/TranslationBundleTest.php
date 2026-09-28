@@ -11,8 +11,12 @@
 
 namespace Symfony\Component\Translation\Tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\ConfigCache;
+use Symfony\Component\Config\ConfigCacheFactory;
 use Symfony\Component\Config\Definition\Processor;
+use Symfony\Component\Config\Resource\ComposerResource;
 use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\Compiler\MergeExtensionConfigurationPass;
 use Symfony\Component\DependencyInjection\Compiler\RemoveMissingDependenciesPass as ContainerRemoveMissingDependenciesPass;
@@ -21,10 +25,13 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\ParameterBag\EnvPlaceholderParameterBag;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Translation\DependencyInjection\RemoveMissingDependenciesPass;
+use Symfony\Component\Translation\Exception\InvalidResourceException;
 use Symfony\Component\Translation\IdentityTranslator;
 use Symfony\Component\Translation\TranslatableMessage;
 use Symfony\Component\Translation\TranslationBundle;
+use Symfony\Component\Validator\Validation;
 
 class TranslationBundleTest extends TestCase
 {
@@ -76,6 +83,34 @@ class TranslationBundleTest extends TestCase
         $this->assertContains(__DIR__.'/Fixtures/translations', $options['scanned_directories']);
     }
 
+    public function testTheTranslationsOfTheValidatorAreRegisteredOnceWhenItsBundleIsEnabled()
+    {
+        if (!class_exists(Validation::class)) {
+            $this->markTestSkipped('The Validator component is not installed.');
+        }
+
+        $validatorDir = \dirname(new \ReflectionClass(Validation::class)->getFileName());
+        $options = $this->load([], bundlesMetadata: ['ValidationBundle' => ['path' => $validatorDir, 'namespace' => 'Symfony\\Component\\Validator']])
+            ->getDefinition('translator.default')->getArgument(4);
+
+        // the finder appends to the directory it was given, so the separators are mixed on Windows
+        $files = array_map(static fn ($file) => str_replace('\\', '/', $file), $options['resource_files']['en']);
+
+        $this->assertSame(1, array_count_values($files)[str_replace('\\', '/', $validatorDir).'/Resources/translations/validators.en.xlf']);
+        $this->assertSame(1, array_count_values($options['scanned_directories'])[$validatorDir.'/Resources/translations']);
+    }
+
+    public function testADirectoryListedInPathsAndAsTheDefaultPathIsRegisteredOnce()
+    {
+        $dir = __DIR__.'/Fixtures/translations';
+        $options = $this->load(['paths' => [$dir], 'default_path' => $dir])->getDefinition('translator.default')->getArgument(4);
+
+        $files = array_map(static fn ($file) => str_replace('\\', '/', $file), $options['resource_files']['en']);
+
+        $this->assertSame(1, array_count_values($files)[str_replace('\\', '/', $dir).'/messages.en.yaml']);
+        $this->assertSame(1, array_count_values($options['scanned_directories'])[$dir]);
+    }
+
     public function testDefaultPathContainingAPercentSign()
     {
         // two percent signs are required: "%2Fother%" is what the parameter bag reads as a reference
@@ -94,6 +129,96 @@ class TranslationBundleTest extends TestCase
             @rmdir($projectDir.'/translations');
             @rmdir($projectDir);
         }
+    }
+
+    public function testTheXliffLoaderDoesNotValidateTheTranslationsOfVendorPackages()
+    {
+        $container = $this->load(['paths' => [__DIR__.'/Fixtures/translations']]);
+
+        $this->assertSame((new ComposerResource())->getVendors(), $container->getDefinition('translation.loader.xliff')->getArgument(0));
+    }
+
+    public function testTheXliffFilesOfTheApplicationAreValidated()
+    {
+        $projectDir = sys_get_temp_dir().'/sf_translation_xliff_'.substr(md5(__METHOD__), 0, 8);
+        @mkdir($projectDir.'/translations', 0o777, true);
+        copy(__DIR__.'/Fixtures/non-valid.xlf', $projectDir.'/translations/messages.en.xlf');
+
+        try {
+            $container = $this->load(['cache_dir' => null, 'default_path' => '%kernel.project_dir%/translations'], merge: false, projectDir: $projectDir);
+            $container->register('config_cache_factory', ConfigCacheFactory::class)->setArguments([false]);
+            $container->compile();
+
+            $this->expectException(InvalidResourceException::class);
+            $this->expectExceptionMessageMatches('{^Invalid resource provided: ".*messages\.en\.xlf"; Errors: }');
+
+            $container->get('translator')->trans('foo');
+        } finally {
+            @unlink($projectDir.'/translations/messages.en.xlf');
+            @rmdir($projectDir.'/translations');
+            @rmdir($projectDir);
+        }
+    }
+
+    #[DataProvider('provideTranslationEdits')]
+    public function testEditingATranslationFileRefreshesTheCatalogueWithoutRebuildingTheContainer(bool $renameOver)
+    {
+        $projectDir = $this->createProjectDir();
+
+        try {
+            $cache = $this->dumpContainerResources($projectDir);
+            $this->assertSame('Hello', $this->translate($projectDir, 'hello'));
+
+            $file = $projectDir.'/translations/messages.en.yaml';
+            file_put_contents($renameOver ? $file.'~' : $file, "hello: Hello again\n");
+            if ($renameOver) {
+                rename($file.'~', $file);
+            }
+            // the catalogue was dumped in the same second
+            touch($file, time() + 10);
+
+            $this->assertTrue($cache->isFresh());
+            $this->assertSame('Hello again', $this->translate($projectDir, 'hello'));
+        } finally {
+            new Filesystem()->remove($projectDir);
+        }
+    }
+
+    public static function provideTranslationEdits(): iterable
+    {
+        yield 'in place' => [false];
+        // editors often save by renaming a temporary file over the edited one
+        yield 'renamed over' => [true];
+    }
+
+    #[DataProvider('provideTranslationFileListChanges')]
+    public function testAddingRemovingOrRenamingATranslationFileRebuildsTheContainer(string $change)
+    {
+        $projectDir = $this->createProjectDir();
+
+        try {
+            $cache = $this->dumpContainerResources($projectDir);
+            $dir = $projectDir.'/translations';
+
+            match ($change) {
+                'add' => file_put_contents($dir.'/messages.fr.yaml', "hello: Bonjour\n"),
+                'add in a subdirectory' => file_put_contents($dir.'/admin/messages.fr.yaml', "title: Administration\n"),
+                'remove from a subdirectory' => unlink($dir.'/admin/messages.en.yaml'),
+                'rename' => rename($dir.'/messages.en.yaml', $dir.'/messages.en_GB.yaml'),
+            };
+
+            $this->assertFalse($cache->isFresh());
+        } finally {
+            new Filesystem()->remove($projectDir);
+        }
+    }
+
+    public static function provideTranslationFileListChanges(): iterable
+    {
+        yield ['add'];
+        yield ['add in a subdirectory'];
+        yield ['remove from a subdirectory'];
+        yield ['rename'];
     }
 
     public function testAnUnknownPathIsRejected()
@@ -205,10 +330,44 @@ class TranslationBundleTest extends TestCase
         return [];
     }
 
+    private function createProjectDir(): string
+    {
+        $projectDir = sys_get_temp_dir().'/sf_translation_'.uniqid();
+        mkdir($projectDir.'/translations/admin', 0o777, true);
+        file_put_contents($projectDir.'/translations/messages.en.yaml', "hello: Hello\n");
+        file_put_contents($projectDir.'/translations/admin/messages.en.yaml', "title: Administration\n");
+
+        // the project was not touched in the second before the container is built
+        foreach (['/translations/admin/messages.en.yaml', '/translations/messages.en.yaml', '/translations/admin', '/translations'] as $path) {
+            touch($projectDir.$path, time() - 10);
+        }
+
+        return $projectDir;
+    }
+
+    private function dumpContainerResources(string $projectDir): ConfigCache
+    {
+        $container = $this->load(['default_path' => '%kernel.project_dir%/translations'], projectDir: $projectDir);
+
+        $cache = new ConfigCache($projectDir.'/var/container.php', true);
+        $cache->write('<?php return null;', $container->getResources());
+
+        return $cache;
+    }
+
+    private function translate(string $projectDir, string $id): string
+    {
+        $container = $this->load(['cache_dir' => $projectDir.'/var/translations', 'default_path' => '%kernel.project_dir%/translations'], merge: false, projectDir: $projectDir);
+        $container->register('config_cache_factory', ConfigCacheFactory::class)->setArguments([true]);
+        $container->compile();
+
+        return $container->get('translator')->trans($id);
+    }
+
     /**
      * @param array<string, mixed> $config
      */
-    private function load(array $config, bool $debug = false, bool $merge = true, bool $profiler = false, array $enabledLocales = [], ?string $projectDir = null): ContainerBuilder
+    private function load(array $config, bool $debug = false, bool $merge = true, bool $profiler = false, array $enabledLocales = [], ?string $projectDir = null, array $bundlesMetadata = []): ContainerBuilder
     {
         $container = new ContainerBuilder(new EnvPlaceholderParameterBag([
             'kernel.debug' => $debug,
@@ -217,7 +376,7 @@ class TranslationBundleTest extends TestCase
             'kernel.project_dir' => str_replace('%', '%%', $projectDir ?? __DIR__),
             'kernel.default_locale' => 'en',
             'kernel.enabled_locales' => $enabledLocales,
-            'kernel.bundles_metadata' => [],
+            'kernel.bundles_metadata' => $bundlesMetadata,
             'kernel.container_class' => 'TestContainer',
         ]));
 

@@ -12,6 +12,7 @@
 namespace Symfony\Bundle\SecurityBundle\DependencyInjection;
 
 use Composer\InstalledVersions;
+use Jose\Component\Core\Algorithm;
 use Symfony\Bridge\Twig\Extension\LogoutUrlExtension;
 use Symfony\Bundle\SecurityBundle\DependencyInjection\Security\Factory\AuthenticatorFactoryInterface;
 use Symfony\Bundle\SecurityBundle\DependencyInjection\Security\Factory\FirewallListenerFactoryInterface;
@@ -111,6 +112,14 @@ class SecurityExtension extends Extension implements PrependExtensionInterface
         $loader->load('security_listeners.php');
         $loader->load('security_authenticator.php');
         $loader->load('security_authenticator_access_token.php');
+
+        if (!$container::willBeAvailable('web-token/jwt-library', Algorithm::class, ['symfony/security-bundle'])) {
+            foreach (['signature', 'encryption'] as $type) {
+                foreach ($container->findTaggedServiceIds('security.access_token_handler.oidc.'.$type.'_algorithm') as $id => $tags) {
+                    $container->removeDefinition($id);
+                }
+            }
+        }
 
         if ($container::willBeAvailable('symfony/twig-bridge', LogoutUrlExtension::class, ['symfony/security-bundle'])) {
             $loader->load('templating_twig.php');
@@ -624,19 +633,22 @@ class SecurityExtension extends Extension implements PrependExtensionInterface
 
     private function createContextListener(ContainerBuilder $container, string $contextKey, ?string $firewallEventDispatcherId): string
     {
-        if (isset($this->contextListeners[$contextKey])) {
-            return $this->contextListeners[$contextKey];
-        }
-
         $listenerId = 'security.context_listener.'.\count($this->contextListeners);
         $listener = $container->setDefinition($listenerId, new ChildDefinition('security.context_listener'));
         $listener->replaceArgument(2, $contextKey);
-        $listener->addTag('kernel.event_listener', ['event' => KernelEvents::RESPONSE, 'method' => 'onKernelResponse']);
+
+        // the firewalls sharing a context share its session key, so one listener per context is enough to write it
+        if (!\in_array($contextKey, $this->contextListeners, true)) {
+            $listener->addTag('kernel.event_listener', ['event' => KernelEvents::RESPONSE, 'method' => 'onKernelResponse']);
+        }
+
         if (null !== $firewallEventDispatcherId) {
             $listener->replaceArgument(4, new Reference($firewallEventDispatcherId));
         }
 
-        return $this->contextListeners[$contextKey] = $listenerId;
+        $this->contextListeners[$listenerId] = $contextKey;
+
+        return $listenerId;
     }
 
     private function createAuthenticationListeners(ContainerBuilder $container, string $id, array $firewall, array &$authenticationProviders, ?string $defaultProvider, array $providerIds, ?string $defaultEntryPoint): array

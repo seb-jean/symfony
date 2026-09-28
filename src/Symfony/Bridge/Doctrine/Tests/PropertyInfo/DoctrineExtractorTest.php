@@ -15,22 +15,25 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\EventManager;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Schema\DefaultSchemaManagerFactory;
-use Doctrine\DBAL\Types\Type as DBALType;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Mapping\Driver\AttributeDriver;
 use Doctrine\ORM\ORMSetup;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\Doctrine\PropertyInfo\DoctrineExtractor;
+use Symfony\Bridge\Doctrine\Tests\DoctrineTestHelper;
 use Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\DoctrineDummy;
 use Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\DoctrineEmbeddable;
 use Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\DoctrineEnum;
+use Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\DoctrineFooType;
 use Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\DoctrineGeneratedValue;
 use Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\DoctrineRelation;
 use Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\DoctrineWithEmbedded;
 use Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\EnumInt;
 use Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\EnumString;
 use Symfony\Component\TypeInfo\Type;
+use Symfony\Component\Uid\Ulid;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Kévin Dunglas <dunglas@gmail.com>
@@ -44,13 +47,11 @@ class DoctrineExtractorTest extends TestCase
         $config->setSchemaManagerFactory(new DefaultSchemaManagerFactory());
         $config->enableNativeLazyObjects(true);
 
+        DoctrineTestHelper::registerTypes($config, ['foo' => DoctrineFooType::class]);
+
         $eventManager = new EventManager();
         $entityManager = new EntityManager(DriverManager::getConnection(['driver' => 'pdo_sqlite'], $config, $eventManager), $config, $eventManager);
-
-        if (!DBALType::hasType('foo')) {
-            DBALType::addType('foo', 'Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\DoctrineFooType');
-            $entityManager->getConnection()->getDatabasePlatform()->registerDoctrineTypeMapping('custom_foo', 'foo');
-        }
+        $entityManager->getConnection()->getDatabasePlatform()->registerDoctrineTypeMapping('custom_foo', 'foo');
 
         return new DoctrineExtractor($entityManager);
     }
@@ -61,6 +62,8 @@ class DoctrineExtractorTest extends TestCase
         $expected = [
             'id',
             'guid',
+            'uuid',
+            'ulid',
             'time',
             'timeImmutable',
             'dateInterval',
@@ -84,6 +87,7 @@ class DoctrineExtractorTest extends TestCase
             'indexedBaz',
             'indexedByDt',
             'indexedByCustomType',
+            'indexedByUuid',
             'indexedBuz',
             'dummyGeneratedValueList',
         ]);
@@ -149,6 +153,8 @@ class DoctrineExtractorTest extends TestCase
     {
         yield ['id', Type::int()];
         yield ['guid', Type::string()];
+        yield ['uuid', Type::object(Uuid::class)];
+        yield ['ulid', Type::object(Ulid::class)];
         yield ['bigint', Type::union(Type::int(), Type::string())];
         yield ['time', Type::object(\DateTime::class)];
         yield ['timeImmutable', Type::object(\DateTimeImmutable::class)];
@@ -166,8 +172,9 @@ class DoctrineExtractorTest extends TestCase
         yield ['simpleArray', Type::list(Type::string())];
         yield ['customFoo', null];
         yield ['notMapped', null];
-        yield ['indexedByDt', Type::collection(Type::object(Collection::class), Type::object(DoctrineRelation::class), Type::object())];
-        yield ['indexedByCustomType', null];
+        yield ['indexedByDt', Type::collection(Type::object(Collection::class), Type::object(DoctrineRelation::class))];
+        yield ['indexedByCustomType', Type::collection(Type::object(Collection::class), Type::object(DoctrineRelation::class))];
+        yield ['indexedByUuid', Type::collection(Type::object(Collection::class), Type::object(DoctrineRelation::class))];
         yield ['indexedBuz', Type::collection(Type::object(Collection::class), Type::object(DoctrineRelation::class), Type::string())];
         yield ['dummyGeneratedValueList', Type::collection(Type::object(Collection::class), Type::object(DoctrineRelation::class), Type::int())];
         yield ['json', null];

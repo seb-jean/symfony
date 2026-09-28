@@ -13,6 +13,7 @@ namespace Symfony\Component\Uid\Tests;
 
 use Ds\Set;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
@@ -155,12 +156,77 @@ class UuidTest extends TestCase
         $this->assertSame('3499710062d0', $uuid->getNode());
     }
 
-    public function testV6IsSeeded()
+    public function testV1AndV6DoNotUseTheMacAddress()
     {
-        $uuidV1 = Uuid::v1();
-        $uuidV6 = Uuid::v6();
+        // the multicast bit is set on nodes that are not a MAC address
+        $this->assertSame(1, hexdec(Uuid::v1()->getNode()[1]) & 1);
+        $this->assertSame(1, hexdec(Uuid::v6()->getNode()[1]) & 1);
+    }
 
-        $this->assertNotSame(substr($uuidV1, 24), substr($uuidV6, 24));
+    #[Group('time-sensitive')]
+    public function testV1AndV6ReadTheClock()
+    {
+        $now = microtime(false);
+        $now = substr($now, 11).'.'.substr($now, 2, 6);
+
+        $this->assertSame($now, (new UuidV1())->getDateTime()->format('U.u'));
+        $this->assertSame($now, (new UuidV6())->getDateTime()->format('U.u'));
+    }
+
+    #[Group('time-sensitive')]
+    public function testV6IsMonotonic()
+    {
+        $prev = UuidV6::generate();
+
+        for ($i = 0; $i < 100; ++$i) {
+            $uuid = UuidV6::generate();
+            $this->assertGreaterThan($prev, $uuid);
+            $prev = $uuid;
+        }
+
+        usleep(-1000);
+        $this->assertGreaterThan($prev, UuidV6::generate());
+    }
+
+    #[RequiresPhpExtension('pcntl')]
+    public function testV1AndV6NodesAreNotSharedWithForks()
+    {
+        $node = Uuid::v1()->getNode();
+        [$parentSocket, $childSocket] = stream_socket_pair(\STREAM_PF_UNIX, \STREAM_SOCK_STREAM, \STREAM_IPPROTO_IP);
+
+        if (!$pid = pcntl_fork()) {
+            fwrite($childSocket, Uuid::v1()->getNode());
+            exit(0);
+        }
+
+        fclose($childSocket);
+        $childNode = stream_get_contents($parentSocket);
+        pcntl_waitpid($pid, $status);
+
+        $this->assertNotSame($node, $childNode);
+    }
+
+    #[Group('time-sensitive')]
+    #[RequiresPhpExtension('pcntl')]
+    public function testV1AndV6NodesAreNotSharedWithForksAfterTheClockWentBackwards()
+    {
+        Uuid::v1();
+        usleep(-100);
+        $node = Uuid::v1()->getNode();
+        [$parentSocket, $childSocket] = stream_socket_pair(\STREAM_PF_UNIX, \STREAM_SOCK_STREAM, \STREAM_IPPROTO_IP);
+
+        if (!$pid = pcntl_fork()) {
+            // the fork takes as long as the clock went backwards, so the clock is back to the last timestamp
+            usleep(100);
+            fwrite($childSocket, Uuid::v1()->getNode());
+            exit(0);
+        }
+
+        fclose($childSocket);
+        $childNode = stream_get_contents($parentSocket);
+        pcntl_waitpid($pid, $status);
+
+        $this->assertNotSame($node, $childNode);
     }
 
     public function testV7()
@@ -183,6 +249,19 @@ class UuidTest extends TestCase
         $uuid = Uuid::fromString($uuid);
         $this->assertInstanceOf(UuidV7::class, $uuid);
         $this->assertSame($now, $uuid->getDateTime()->format('Y-m-d H:i'));
+    }
+
+    #[Group('time-sensitive')]
+    public function testV7IsMonotonicWhenTheClockGoesBackwards()
+    {
+        $prev = UuidV7::generate();
+
+        for ($i = 0; $i < 3; ++$i) {
+            usleep(-500);
+            $uuid = UuidV7::generate();
+            $this->assertGreaterThan($prev, $uuid);
+            $prev = $uuid;
+        }
     }
 
     public function testBinary()
@@ -283,6 +362,15 @@ class UuidTest extends TestCase
 
         $this->assertFalse(UuidV5::isValid('ffffffff-ffff-ffff-ffff-ffffffffffff'));
         $this->assertFalse(UuidV6::isValid('ffffffff-ffff-ffff-ffff-ffffffffffff'));
+    }
+
+    public function testCompareWithUlid()
+    {
+        $uuid = new UuidV4(self::A_UUID_V4);
+        $ulid = new Ulid('01EW2RYKDCT2SAK454KBR2QG08');
+
+        $this->assertGreaterThan(0, $uuid->compare($ulid));
+        $this->assertLessThan(0, $ulid->compare($uuid));
     }
 
     public function testEquals()

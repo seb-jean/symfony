@@ -120,12 +120,28 @@ final class ArrayShapeType extends CollectionType
         return true;
     }
 
+    /**
+     * @param-immediately-invoked-callable $mapper
+     */
+    public function map(callable $mapper): Type
+    {
+        $shape = array_map(static fn (array $item): array => array_replace($item, ['type' => $item['type']->map($mapper)]), $this->shape);
+        $extraKeyType = $this->extraKeyType?->map($mapper);
+        $extraValueType = $this->extraValueType?->map($mapper);
+
+        if ($shape === $this->shape && $extraKeyType === $this->extraKeyType && $extraValueType === $this->extraValueType) {
+            return $mapper($this);
+        }
+
+        return $mapper(new self($shape, $extraKeyType, $extraValueType));
+    }
+
     public function __toString(): string
     {
         $items = [];
 
         foreach ($this->shape as $key => $value) {
-            $itemKey = \is_int($key) ? (string) $key : \sprintf("'%s'", $key);
+            $itemKey = \is_int($key) ? (string) $key : \sprintf("'%s'", addcslashes($key, "'\\"));
             if ($value['optional'] ?? false) {
                 $itemKey = \sprintf('%s?', $itemKey);
             }

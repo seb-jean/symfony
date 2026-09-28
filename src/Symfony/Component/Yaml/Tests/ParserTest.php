@@ -132,6 +132,36 @@ class ParserTest extends TestCase
         $this->assertSameData($expected, $data);
     }
 
+    public function testTaggedValueWithoutValue()
+    {
+        $this->assertSameData(['foo' => new TaggedValue('custom', ''), 'bar' => 1], $this->parser->parse("foo: !custom\nbar: 1", Yaml::PARSE_CUSTOM_TAGS));
+        $this->assertSameData(['foo' => new TaggedValue('custom', '')], $this->parser->parse('foo: !custom # comment', Yaml::PARSE_CUSTOM_TAGS));
+        $this->assertSameData([['a' => new TaggedValue('custom', '')], 'b'], $this->parser->parse("- a: !custom\n- b", Yaml::PARSE_CUSTOM_TAGS));
+        $this->assertSameData(['foo' => new TaggedValue('custom', ['a', 'b'])], $this->parser->parse("foo: !custom\n- a\n- b", Yaml::PARSE_CUSTOM_TAGS));
+        $this->assertSameData(new TaggedValue('custom', ''), $this->parser->parse("!custom\n", Yaml::PARSE_CUSTOM_TAGS));
+        $this->assertSameData(new TaggedValue('custom', ''), $this->parser->parse("!custom # comment\n", Yaml::PARSE_CUSTOM_TAGS));
+    }
+
+    public function testAnchorAfterTag()
+    {
+        $this->assertSameData(['foo' => new TaggedValue('custom', 'x'), 'bar' => new TaggedValue('custom', 'x')], $this->parser->parse("foo: !custom &a x\nbar: *a", Yaml::PARSE_CUSTOM_TAGS));
+        $this->assertSameData([new TaggedValue('custom', ['b' => 1]), new TaggedValue('custom', ['b' => 1])], $this->parser->parse("- !custom &a\n  b: 1\n- *a", Yaml::PARSE_CUSTOM_TAGS));
+    }
+
+    public function testEmptyMappingKeyWithTag()
+    {
+        $this->assertSame(['' => 'v'], $this->parser->parse('!!str : v'));
+        $this->assertSame(['a' => 1, '' => 'v'], $this->parser->parse("a: 1\n!!str : v"));
+    }
+
+    public function testEmptyMappingKeyWithCustomTag()
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('The string "!custom" could not be parsed');
+
+        $this->parser->parse('!custom : v', Yaml::PARSE_CUSTOM_TAGS);
+    }
+
     public function testTaggedTextAsListItem()
     {
         $yml = <<<'YAML'
@@ -159,6 +189,15 @@ class ParserTest extends TestCase
         $this->assertSameData($expected, $this->parser->parse($yml, Yaml::PARSE_CUSTOM_TAGS));
     }
 
+    public function testCoreTagsOnBlockScalars()
+    {
+        $this->assertSame(['key' => "a\nb\n", 'last' => 'c'], $this->parser->parse("key: !!str |\n  a\n  b\nlast: c"));
+        $this->assertSame(['key' => "a b\n", 'last' => 'c'], $this->parser->parse("key: !!str >\n  a\n  b\nlast: c"));
+        $this->assertSame(["a\nb", 'c'], $this->parser->parse("- !!str |-\n  a\n  b\n- c"));
+        $this->assertSame(['key' => 1.5, 'last' => 'c'], $this->parser->parse("key: !!float |\n  1.5\nlast: c"));
+        $this->assertSame(['key' => 'Hello', 'last' => 'c'], $this->parser->parse("key: !!binary |\n  SGVsbG8=\nlast: c"));
+    }
+
     public function testTaggedBlockScalarInNestedList()
     {
         $yml = <<<'YAML'
@@ -168,6 +207,113 @@ class ParserTest extends TestCase
                 b
             YAML;
         $this->assertSameData(['foo' => [new TaggedValue('text', "a\nb")]], $this->parser->parse($yml, Yaml::PARSE_CUSTOM_TAGS));
+    }
+
+    #[DataProvider('getBlockScalarsAsRootNode')]
+    public function testBlockScalarAsRootNode(string $yaml, mixed $expected)
+    {
+        $this->assertSameData($expected, $this->parser->parse($yaml, Yaml::PARSE_CUSTOM_TAGS));
+    }
+
+    public static function getBlockScalarsAsRootNode(): iterable
+    {
+        yield 'literal' => ["|\n  first line\n  second line\n", "first line\nsecond line\n"];
+        yield 'folded' => [">\n  folded\n  text\n", "folded text\n"];
+        yield 'tagged' => ["!text |\n  first line\n  second line\n", new TaggedValue('text', "first line\nsecond line\n")];
+        yield 'tagged with strip chomping' => ["!text |-\n  first line\n  second line\n", new TaggedValue('text', "first line\nsecond line")];
+        yield 'tagged with keep chomping' => ["!text |+\n  first line\n\n", new TaggedValue('text', "first line\n\n")];
+        yield 'tagged with indentation indicator' => ["!text |2\n    indented\n  line\n", new TaggedValue('text', "  indented\nline\n")];
+        yield 'binary' => ["!!binary |\n  SGVsbG8=\n", 'Hello'];
+        yield 'surrounded by comments' => ["# comment\n!text | # comment\n  first line\n# comment\n", new TaggedValue('text', "first line\n")];
+        yield 'indented comment-like content' => ["|\n  # not a comment\n", "# not a comment\n"];
+        yield 'empty literal' => ["|\n", ''];
+        yield 'empty literal at the end of the document' => ['|', ''];
+        yield 'empty literal followed by blank lines' => ["|\n\n  \n", ''];
+        yield 'empty literal with strip chomping' => ["|-\n\n", ''];
+        yield 'empty literal with keep chomping' => ["|+\n\n  \n", "\n\n"];
+        yield 'empty folded' => [">\n\n", ''];
+        yield 'empty folded with strip chomping' => [">-\n", ''];
+        yield 'empty folded with keep chomping' => [">+\n\n", "\n"];
+        yield 'empty tagged' => ["!text |\n", new TaggedValue('text', '')];
+        yield 'empty tagged with keep chomping' => ["!text >+\n\n", new TaggedValue('text', "\n")];
+        yield 'empty followed by comments' => ["# comment\n|+ # comment\n\n# comment\n\n", "\n"];
+        yield 'whitespace-only content with indentation indicator' => ["|1\n  \n", " \n"];
+        yield 'tab between the tag and the header' => ["!text\t>\n  folded\n  text\n", new TaggedValue('text', "folded text\n")];
+        yield 'on the document start marker line' => ["--- |\n  first line\n  second line\n", "first line\nsecond line\n"];
+        yield 'tagged on the document start marker line' => ["--- !text >-\n  folded\n  text\n", new TaggedValue('text', 'folded text')];
+        yield 'with an anchor on the document start marker line' => ["--- &anchor |\n  first line\n", "first line\n"];
+        yield 'tab after the document start marker' => ["---\t>\n  folded\n  text\n", "folded text\n"];
+        yield 'anchor before tag on the document start marker line' => ["--- &anchor !text |\n  first line\n", new TaggedValue('text', "first line\n")];
+        yield 'tag before anchor on the document start marker line' => ["--- !text &anchor |\n  first line\n", new TaggedValue('text', "first line\n")];
+        yield 'CRLF line endings' => ["--- >\r\n  folded\r\n  text\r\n", "folded text\n"];
+    }
+
+    public function testBlockScalarAsRootNodeFollowedByContent()
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Unable to parse at line 3 (near "foo: bar").');
+
+        $this->parser->parse("!text |\n  first line\nfoo: bar\n", Yaml::PARSE_CUSTOM_TAGS);
+    }
+
+    public function testEmptyBlockScalarAsRootNodeFollowedByContent()
+    {
+        $this->expectException(ParseException::class);
+
+        $this->parser->parse("|\n# comment\nfoo: bar\n");
+    }
+
+    public function testInvalidBinaryBlockScalarAsRootNode()
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('length must be a multiple of four (2 bytes given) at line 2');
+
+        $this->parser->parse("# comment\n!!binary |\n  QQ\n");
+    }
+
+    #[DataProvider('getCustomTaggedBlockScalars')]
+    public function testCustomTagOnBlockScalarRequiresCustomTagsFlag(string $yaml, mixed $expected, int $line, string $header)
+    {
+        $this->assertSameData($expected, $this->parser->parse($yaml, Yaml::PARSE_CUSTOM_TAGS));
+
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage(\sprintf('Tags support is not enabled. Enable the "Yaml::PARSE_CUSTOM_TAGS" flag to use "!foo" at line %d (near "%s").', $line, $header));
+
+        $this->parser->parse($yaml);
+    }
+
+    public static function getCustomTaggedBlockScalars(): iterable
+    {
+        yield 'mapping value' => ["first: a\nkey: !foo |\n  b\nlast: c", ['first' => 'a', 'key' => new TaggedValue('foo', "b\n"), 'last' => 'c'], 2, 'key: !foo |'];
+        yield 'folded mapping value' => ["key: !foo >-\n  b\n  c", ['key' => new TaggedValue('foo', 'b c')], 1, 'key: !foo >-'];
+        yield 'sequence item' => ["- a\n- !foo |\n  b\n- c", ['a', new TaggedValue('foo', "b\n"), 'c'], 2, '- !foo |'];
+        yield 'root node' => ["!foo |\n  b\n", new TaggedValue('foo', "b\n"), 1, '!foo |'];
+        yield 'empty root node' => ["# comment\n!foo |\n", new TaggedValue('foo', ''), 2, '!foo |'];
+    }
+
+    public function testCoreTagsOnBlockScalarsResolveLikeOnInlineScalars()
+    {
+        $this->assertSame(['key' => 42, 'last' => 'c'], $this->parser->parse("key: !!int |-\n  42\nlast: c"));
+        $this->assertSame(['key' => true, 'last' => 'c'], $this->parser->parse("key: !!bool |-\n  true\nlast: c"));
+        $this->assertSame(['key' => null, 'last' => 'c'], $this->parser->parse("key: !!null |-\n  ~\nlast: c"));
+        $this->assertSame(['key' => 1.5, 'last' => 'c'], $this->parser->parse("key: !!float |\n  1.5\nlast: c"));
+        $this->assertSame(42, $this->parser->parse("!!int |-\n  42\n"));
+    }
+
+    public function testInvalidCoreTagValueOnBlockScalar()
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('The value "abc" is not a valid "!!float" value');
+
+        $this->parser->parse("key: !!float |-\n  abc\n");
+    }
+
+    public function testUnsupportedBuiltInTagOnBlockScalar()
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('The built-in tag "!!set" is not implemented at line 1');
+
+        $this->parser->parse("key: !!set |\n  a\n", Yaml::PARSE_CUSTOM_TAGS);
     }
 
     #[DataProvider('getDataFormSpecifications')]
@@ -602,6 +748,54 @@ class ParserTest extends TestCase
         ];
 
         $this->assertSame($expected, $this->parser->parse($yaml));
+    }
+
+    public function testBlockScalarsWithoutContent()
+    {
+        $this->assertSame(['strip' => '', 'clip' => '', 'keep' => "\n"], $this->parser->parse("strip: >-\n\nclip: >\n\nkeep: |+\n\n"));
+        $this->assertSame(['a' => '', 'b' => 'c'], $this->parser->parse("a: |\nb: c"));
+        $this->assertSame(['a' => '', 'b' => 'c'], $this->parser->parse("a: |\n\n\nb: c"));
+        $this->assertSame(['a' => "\n\n", 'b' => 'c'], $this->parser->parse("a: |+\n\n\nb: c"));
+        $this->assertSame(['a' => ''], $this->parser->parse("a: |\n\n\n"));
+        $this->assertSame(['a' => "\n\n"], $this->parser->parse("a: >+\n\n\n"));
+        $this->assertSame(['a' => '', 'b' => 'c'], $this->parser->parse("a: |\n# comment\nb: c"));
+        $this->assertSame(['a' => "\n", 'b' => 'c'], $this->parser->parse("a: |+\n\n# comment\n\nb: c"));
+        $this->assertSame(['', 'b'], $this->parser->parse("- >\n\n- b"));
+        $this->assertSame(['a' => ['b' => "\n\n"], 'c' => 'd'], $this->parser->parse("a:\n  b: |+\n  \n\nc: d"));
+    }
+
+    public function testSpacesOnlyLinesInBlockScalarsWithIndentationIndicator()
+    {
+        $this->assertSame(['a' => "  \nt\n"], $this->parser->parse("a: |2\n    \n  t\n"));
+        $this->assertSame(['a' => "  \n"], $this->parser->parse("a: |1\n   \n"));
+    }
+
+    public function testLineBreaksAroundMoreIndentedLinesInFoldedBlocks()
+    {
+        $this->assertSame(['a' => " t\nu\n"], $this->parser->parse("a: >2\n   t\n  u\n"));
+        $this->assertSame(['a' => "\n t\n"], $this->parser->parse("a: >1\n\n  t\n"));
+        $this->assertSame(['a' => "a\n b\n\nc\n"], $this->parser->parse("a: >\n  a\n   b\n\n  c\n"));
+    }
+
+    public function testTabLedLinesAreMoreIndentedInFoldedBlocks()
+    {
+        $this->assertSame(['k' => "\t\nregular\n"], $this->parser->parse("k: >\n  \t\n  regular\n"));
+        $this->assertSame(['k' => "first \n\n\t second\n\nthird\n"], $this->parser->parse("k: >\n  first \n  \n  \t second\n\n  third\n"));
+    }
+
+    public function testTabsInBlockScalarHeaders()
+    {
+        $this->assertSame(['k' => "first\n"], $this->parser->parse("k: >\t# header\n  first\n"));
+        $this->assertSameData(['k' => new TaggedValue('text', "first second\n")], $this->parser->parse("k: !text\t>\n  first\n  second\n", Yaml::PARSE_CUSTOM_TAGS));
+        $this->assertSameData([new TaggedValue('text', "first\n"), 'b'], $this->parser->parse("- !text\t|\n  first\n- b\n", Yaml::PARSE_CUSTOM_TAGS));
+        $this->assertSameData([['a' => new TaggedValue('text', "\n")], 'b'], $this->parser->parse("- a: !text\t|+\n\n- b\n", Yaml::PARSE_CUSTOM_TAGS));
+    }
+
+    public function testEmptyBlockScalarFollowedByLessIndentedComment()
+    {
+        $this->assertSame(['k' => "\n", 'next' => 1], $this->parser->parse("k: |+\n   \n  # comment\nnext: 1\n"));
+        $this->assertSame(['k' => ''], $this->parser->parse("k: >\n   \n  # comment\n"));
+        $this->assertSame(["\n\n# detected\n"], $this->parser->parse("- >\n \n  \n  # detected\n"));
     }
 
     public function testObjectSupportEnabled()
@@ -1064,6 +1258,9 @@ class ParserTest extends TestCase
                 - key3
             EOD;
         $tests[] = [$yaml, 'child_sequence', 6];
+
+        $tests[] = ["foo: 1\nfoo:\n\n", 'foo', 2];
+        $tests[] = ["# comment\n\n---\nfoo: 1\nfoo: 2", 'foo', 5];
 
         return $tests;
     }
@@ -1628,6 +1825,19 @@ class ParserTest extends TestCase
                 '/The base64 encoded data \(.*\) contains invalid characters/',
             ],
         ];
+    }
+
+    public function testParseEmptyBinaryData()
+    {
+        $this->assertSame(['data' => '', 'foo' => 'bar'], $this->parser->parse("data: !!binary ''\nfoo: bar"));
+        $this->assertSame(['data' => '', 'foo' => 'bar'], $this->parser->parse("data: !!binary |\nfoo: bar"));
+    }
+
+    public function testBuiltInTagsWithoutValue()
+    {
+        $this->assertSame(['a' => '', 'b' => ''], $this->parser->parse("a: !!str\nb: !!binary"));
+        $this->assertSame(['', 1], $this->parser->parse("- !!str\n- 1"));
+        $this->assertSame(['', 1], $this->parser->parse('[!!str , 1]'));
     }
 
     public function testParseDateWithSubseconds()
@@ -3166,6 +3376,16 @@ class ParserTest extends TestCase
         $this->assertSame([['foo' => ['bar' => "text\n"]], 'second'], $this->parser->parse($yaml));
     }
 
+    public function testBlockScalarsInCompactNestedCollections()
+    {
+        $this->assertSame([['a' => "\n"], 'b'], $this->parser->parse("- a: |+\n\n- b"));
+        $this->assertSame([['a' => "# c\n"], 'b'], $this->parser->parse("- a: |\n    # c\n- b"));
+        $this->assertSame([['a' => ''], 'b'], $this->parser->parse("- a: |+\n- b"));
+        $this->assertSame([["t\n\n"], 'b'], $this->parser->parse("- - |+\n    t\n\n- b"));
+        $this->assertSame([['t  ']], $this->parser->parse("- - |\n    t  "));
+        $this->assertSame([[''], 'b'], $this->parser->parse("- - |+\n- b"));
+    }
+
     public function testBlockScalarKeepsTrailingNewlineWhenNestedInMergeKey()
     {
         $yaml = <<<'YAML'
@@ -3552,7 +3772,7 @@ class ParserTest extends TestCase
 
     public function testParseHandlesLargeDocumentMarkers()
     {
-        $yaml = '--- '.str_repeat('header', 20000)."\nfoo: bar\n...   ";
+        $yaml = '--- # '.str_repeat('header', 20000)."\nfoo: bar\n...   ";
 
         $this->assertSame(['foo' => 'bar'], $this->parser->parse($yaml));
     }
@@ -3562,6 +3782,76 @@ class ParserTest extends TestCase
         $yaml = "---\nfoo: bar\n...\n\n";
 
         $this->assertSame(['foo' => 'bar'], $this->parser->parse($yaml));
+    }
+
+    public function testDocumentEndMarkerIsAWholeLine()
+    {
+        $this->assertSame(['foo' => 'bar'], $this->parser->parse("foo: bar\n...\n"));
+        $this->assertSame(['foo' => 'bar'], $this->parser->parse("foo: bar\n... # comment\n# comment\n"));
+        $this->assertSame(['foo' => 'wait...'], $this->parser->parse("---\nfoo: wait..."));
+        $this->assertSame(['foo' => "a\n...\n"], $this->parser->parse("---\nfoo: |\n  a\n  ...\n"));
+    }
+
+    public function testIndentedDocumentMarkersAreContent()
+    {
+        $this->assertSame(['foo' => '---'], $this->parser->parse("foo:\n  ---\n"));
+        $this->assertSame(['foo' => 'a ...'], $this->parser->parse("foo:\n  a\n  ...\n"));
+    }
+
+    public function testDocumentEndMarkerFollowedByAnotherDocument()
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Multiple documents are not supported at line 2 (near "...").');
+
+        $this->parser->parse("foo\n...\nbar");
+    }
+
+    public function testContentOnTheDocumentStartMarkerLine()
+    {
+        $this->assertSame('foo', $this->parser->parse('--- foo'));
+        $this->assertSame(['a', 'b'], $this->parser->parse("--- [a, b]\n"));
+        $this->assertSame('foo bar', $this->parser->parse("--- foo\nbar\n"));
+        $this->assertSame('---foo', $this->parser->parse("---foo\n"));
+        $this->assertNull($this->parser->parse('---'));
+        $this->assertSame(['foo' => 'bar'], $this->parser->parse("--- !custom &a\nfoo: bar\n"));
+        $this->assertSame('a b', $this->parser->parse("--- >-\n  a\n  b\n"));
+    }
+
+    public function testDuplicateYamlDirective()
+    {
+        $this->expectException(ParseException::class);
+
+        $this->parser->parse("%YAML 1.2\n%YAML 1.2\n---\nfoo\n");
+    }
+
+    public function testBlockMappingOnTheDocumentStartMarkerLine()
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('A block collection cannot start on the line of the document start marker (---) at line 1 (near "foo: bar").');
+
+        $this->parser->parse("--- foo: bar\n");
+    }
+
+    public function testBlockSequenceOnTheDocumentStartMarkerLine()
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('A block collection cannot start on the line of the document start marker (---) at line 2 (near "- a").');
+
+        $this->parser->parse("# comment\n--- - a\n- b\n");
+    }
+
+    public function testAnchorOnTheRootNode()
+    {
+        $this->assertSame('foo', $this->parser->parse('&a foo'));
+        $this->assertSame('foo', $this->parser->parse('--- &a foo'));
+        $this->assertSame(['foo' => 'bar'], $this->parser->parse("&a\nfoo: bar\n"));
+        $this->assertSameData(new TaggedValue('custom', 'x'), $this->parser->parse('!custom &a x', Yaml::PARSE_CUSTOM_TAGS));
+    }
+
+    public function testEmptyLinesBeforeTheDocumentStartMarker()
+    {
+        $this->assertSame(['foo' => 'bar'], $this->parser->parse("# license\n\n---\nfoo: bar\n"));
+        $this->assertSame(['foo' => 'bar'], $this->parser->parse("%YAML 1.2\n\n---\nfoo: bar\n"));
     }
 
     public function testParseInlineMappingWithAnchoredQuotedValueContainingBraces()

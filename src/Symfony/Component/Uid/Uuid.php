@@ -53,21 +53,23 @@ class Uuid extends AbstractUid
 
     public static function fromString(string $uuid): static
     {
-        $uuid = self::transformToRfc9562($uuid, self::FORMAT_ALL);
+        if (36 !== \strlen($uuid)) {
+            $uuid = self::transformToRfc9562($uuid, self::FORMAT_ALL);
+        }
 
         if (__CLASS__ !== static::class || 36 !== \strlen($uuid)) {
             return new static($uuid);
         }
 
-        if (self::NIL === $uuid) {
-            return new NilUuid();
-        }
-
-        if (self::MAX === $uuid = strtr($uuid, 'F', 'f')) {
-            return new MaxUuid();
-        }
-
         if (!\in_array($uuid[19], ['8', '9', 'a', 'b', 'A', 'B'], true)) {
+            if (self::NIL === $uuid) {
+                return new NilUuid();
+            }
+
+            if (self::MAX === strtr($uuid, 'F', 'f')) {
+                return new MaxUuid();
+            }
+
             return new self($uuid);
         }
 
@@ -169,13 +171,9 @@ class Uuid extends AbstractUid
         return $this->uid;
     }
 
-    public function compare(AbstractUid $other): int
+    public function toHex(): string
     {
-        if (false !== $cmp = uuid_compare($this->uid, $other->uid)) {
-            return $cmp;
-        }
-
-        return parent::compare($other);
+        return '0x'.str_replace('-', '', $this->uid);
     }
 
     private static function format(string $uuid, string $version): string

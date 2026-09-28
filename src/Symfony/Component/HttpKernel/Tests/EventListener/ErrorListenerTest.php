@@ -27,7 +27,11 @@ use Symfony\Component\HttpKernel\Event\ControllerArgumentsEvent;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\EventListener\ErrorListener;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Log\DebugLoggerInterface;
@@ -102,6 +106,29 @@ class ErrorListenerTest extends TestCase
         $this->assertStringStartsWith('Uncaught PHP Exception Exception: "foo" at ErrorListenerTest.php line', $logs[0]);
         $this->assertStringStartsWith('Uncaught PHP Exception Exception: "foo" at ErrorListenerTest.php line', $logs[1]);
         $this->assertStringStartsWith('Exception thrown when handling an exception (RuntimeException: bar at ErrorListenerTest.php line', $logs[2]);
+    }
+
+    #[DataProvider('provideLogLevels')]
+    public function testLogLevel(\Throwable $exception, string $expectedLevel, array $exceptionsMapping = [])
+    {
+        $logger = new TestLogger();
+        $l = new ErrorListener('not used', $logger, false, $exceptionsMapping);
+        $l->logKernelException(new ExceptionEvent(new TestKernel(), new Request(), HttpKernelInterface::MAIN_REQUEST, $exception));
+
+        $this->assertCount(1, $logger->getLogsForLevel($expectedLevel));
+    }
+
+    public static function provideLogLevels(): iterable
+    {
+        yield '302' => [new HttpException(302), LogLevel::WARNING];
+        yield '404' => [new NotFoundHttpException(), LogLevel::WARNING];
+        yield '422' => [new UnprocessableEntityHttpException(), LogLevel::WARNING];
+        yield '499' => [new HttpException(499), LogLevel::WARNING];
+        yield '500' => [new HttpException(500), LogLevel::CRITICAL];
+        yield '503' => [new ServiceUnavailableHttpException(), LogLevel::CRITICAL];
+        yield 'not an HTTP exception' => [new \RuntimeException(), LogLevel::CRITICAL];
+        yield '404 with configured log level' => [new NotFoundHttpException(), LogLevel::ERROR, [NotFoundHttpException::class => ['log_level' => LogLevel::ERROR, 'status_code' => null]]];
+        yield '404 with log level attribute' => [new ErrorLevelNotFoundHttpException(), LogLevel::ERROR];
     }
 
     public function testHandleWithLoggerAndCustomConfiguration()
@@ -259,6 +286,25 @@ class ErrorListenerTest extends TestCase
         $this->assertEquals(new Response('foo', 401), $event->getResponse());
     }
 
+    #[DataProvider('provideLogLevelsForGivenStatusCode')]
+    public function testLogLevelFollowsGivenStatusCode(\Throwable $exception, string $expectedLogLevel, array $exceptionsMapping = [])
+    {
+        $logger = new TestLogger();
+        $l = new ErrorListener('not used', $logger, false, $exceptionsMapping);
+        $l->logKernelException(new ExceptionEvent(new TestKernel(), new Request(), HttpKernelInterface::MAIN_REQUEST, $exception));
+
+        $this->assertCount(1, $logger->getLogsForLevel($expectedLogLevel));
+    }
+
+    public static function provideLogLevelsForGivenStatusCode(): iterable
+    {
+        yield 'client error from config' => [new \RuntimeException(), LogLevel::WARNING, [\RuntimeException::class => ['log_level' => null, 'status_code' => 404]]];
+        yield 'client error from attribute' => [new WithGeneralAttribute(), LogLevel::WARNING];
+        yield 'server error from config' => [new NotFoundHttpException(), LogLevel::CRITICAL, [NotFoundHttpException::class => ['log_level' => null, 'status_code' => 503]]];
+        yield 'log level from attribute' => [new WarningWithLogLevelAttribute(), LogLevel::WARNING, [WarningWithLogLevelAttribute::class => ['log_level' => null, 'status_code' => 503]]];
+        yield 'log level from config' => [new WithGeneralAttribute(), LogLevel::NOTICE, [WithGeneralAttribute::class => ['log_level' => LogLevel::NOTICE, 'status_code' => null]]];
+    }
+
     public static function provider()
     {
         if (!class_exists(Request::class)) {
@@ -273,6 +319,32 @@ class ErrorListenerTest extends TestCase
         return [
             [$event, $event2],
         ];
+    }
+
+    public function testLogMessagesNameAnonymousClasses()
+    {
+        $message = \sprintf('Cannot use "%s".', (new class extends \ArrayObject {})::class);
+        $exception = new class($message) extends \RuntimeException {};
+        $handlingException = new class($message) extends \LogicException {};
+        $kernel = $this->createStub(HttpKernelInterface::class);
+        $kernel->method('handle')->willThrowException($handlingException);
+
+        $logger = new TestLogger();
+        $l = new ErrorListener('not used', $logger);
+        $event = new ExceptionEvent($kernel, new Request(), HttpKernelInterface::MAIN_REQUEST, $exception);
+        $l->logKernelException($event);
+
+        try {
+            $l->onKernelException($event);
+            $this->fail('LogicException expected');
+        } catch (\LogicException $e) {
+            $this->assertSame($handlingException, $e);
+        }
+
+        $this->assertSame([
+            \sprintf('Uncaught PHP Exception RuntimeException@anonymous: "Cannot use "ArrayObject@anonymous"." at ErrorListenerTest.php line %d', $exception->getLine()),
+            \sprintf('Exception thrown when handling an exception (LogicException@anonymous: Cannot use "ArrayObject@anonymous". at ErrorListenerTest.php line %d)', $handlingException->getLine()),
+        ], $logger->getLogsForLevel('critical'));
     }
 
     public function testSubRequestFormat()
@@ -467,5 +539,10 @@ interface InterfaceWithLogLevelAttribute
 }
 
 class ImplementingInterfaceWithLogLevelAttribute extends \Exception implements InterfaceWithLogLevelAttribute
+{
+}
+
+#[WithLogLevel(LogLevel::ERROR)]
+class ErrorLevelNotFoundHttpException extends NotFoundHttpException
 {
 }

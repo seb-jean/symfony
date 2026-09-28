@@ -40,6 +40,7 @@ use Symfony\Component\Cache\Adapter\RedisTagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\CacheBundle;
 use Symfony\Component\Cache\DependencyInjection\CachePoolPass;
+use Symfony\Component\DependencyInjection\Argument\EnvClosureArgument;
 use Symfony\Component\DependencyInjection\Argument\ServiceLocatorArgument;
 use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\ChildDefinition;
@@ -685,6 +686,24 @@ abstract class FrameworkExtensionTestCase extends TestCase
             \E_NOTICE => LogLevel::ERROR,
             \E_WARNING => LogLevel::ERROR,
         ], $definition->getArgument(1));
+    }
+
+    public function testDebugHandlersListenerResolvesTheRuntimeModeFromEnvOnDemand()
+    {
+        $container = $this->createContainer(['kernel.runtime_mode.web' => '%env(bool:default::key:web:default:kernel.runtime_mode:)%']);
+        (new FrameworkExtension())->load([], $container);
+
+        $webMode = $container->getDefinition('debug.debug_handlers_listener')->getArgument(1);
+        $this->assertInstanceOf(EnvClosureArgument::class, $webMode);
+        $this->assertSame('%env(bool:default::key:web:default:kernel.runtime_mode:)%', $container->resolveEnvPlaceholders($webMode->getValue()));
+    }
+
+    public function testDebugHandlersListenerGetsAStaticRuntimeModeAsParameter()
+    {
+        $container = $this->createContainer(['kernel.runtime_mode.web' => true]);
+        (new FrameworkExtension())->load([], $container);
+
+        $this->assertSame('%kernel.runtime_mode.web%', $container->getDefinition('debug.debug_handlers_listener')->getArgument(1));
     }
 
     public function testExceptionsConfig()
@@ -1476,7 +1495,7 @@ abstract class FrameworkExtensionTestCase extends TestCase
             'resolve' => [],
             'extra' => [],
         ];
-        $this->assertSame([$defaultOptions, 4], $container->getDefinition('http_client.transport')->getArguments());
+        $this->assertSame([$defaultOptions, 4, 0], $container->getDefinition('http_client.transport')->getArguments());
 
         $this->assertTrue($container->getDefinition('http_client')->hasTag('kernel.reset'));
 
@@ -1857,11 +1876,7 @@ abstract class FrameworkExtensionTestCase extends TestCase
 
         $this->assertTrue($container->hasParameter('container.behavior_describing_tags'));
         $this->assertEquals([
-            'proxy',
-            'container.do_not_inline',
-            'container.service_locator',
-            'container.service_subscriber',
-            'container.service_subscriber.locator',
+            ...$defaultTags,
             'kernel.event_subscriber',
             'kernel.event_listener',
             'kernel.reset',

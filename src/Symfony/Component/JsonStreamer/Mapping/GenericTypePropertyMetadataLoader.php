@@ -13,10 +13,10 @@ namespace Symfony\Component\JsonStreamer\Mapping;
 
 use Symfony\Component\TypeInfo\Exception\InvalidArgumentException;
 use Symfony\Component\TypeInfo\Type;
-use Symfony\Component\TypeInfo\Type\CollectionType;
 use Symfony\Component\TypeInfo\Type\GenericType;
 use Symfony\Component\TypeInfo\Type\IntersectionType;
 use Symfony\Component\TypeInfo\Type\ObjectType;
+use Symfony\Component\TypeInfo\Type\TemplateType;
 use Symfony\Component\TypeInfo\Type\UnionType;
 use Symfony\Component\TypeInfo\Type\WrappingTypeInterface;
 use Symfony\Component\TypeInfo\TypeContext\TypeContextFactory;
@@ -114,29 +114,6 @@ final class GenericTypePropertyMetadataLoader implements PropertyMetadataLoaderI
      */
     private function replaceVariableTypes(Type $type, array $variableTypes): Type
     {
-        if (isset($variableTypes[(string) $type])) {
-            return $variableTypes[(string) $type];
-        }
-
-        if ($type instanceof UnionType) {
-            return Type::union(...array_map(fn (Type $t): Type => $this->replaceVariableTypes($t, $variableTypes), $type->getTypes()));
-        }
-
-        if ($type instanceof IntersectionType) {
-            return Type::intersection(...array_map(fn (Type $t): Type => $this->replaceVariableTypes($t, $variableTypes), $type->getTypes()));
-        }
-
-        if ($type instanceof CollectionType) {
-            return new CollectionType($this->replaceVariableTypes($type->getWrappedType(), $variableTypes), $type->isList());
-        }
-
-        if ($type instanceof GenericType) {
-            return Type::generic(
-                $this->replaceVariableTypes($type->getWrappedType(), $variableTypes),
-                ...array_map(fn (Type $t): Type => $this->replaceVariableTypes($t, $variableTypes), $type->getVariableTypes()),
-            );
-        }
-
-        return $type;
+        return $type->map(static fn (Type $t): Type => $t instanceof TemplateType ? ($variableTypes[$t->getName()] ?? $t) : $t);
     }
 }

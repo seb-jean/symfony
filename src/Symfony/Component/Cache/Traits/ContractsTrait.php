@@ -27,15 +27,15 @@ use Symfony\Contracts\Cache\ItemInterface;
  */
 trait ContractsTrait
 {
-    use CacheTrait {
-        doGet as private contractsGet;
-    }
+    use CacheTrait;
 
     private \Closure $callbackWrapper;
     private array $computing = [];
 
     /**
      * Wraps the callback passed to ->get() in a callable.
+     *
+     * A wrapper that saves the item itself calls $setMetadata($item) before saving it, then $setMetadata($item, $saved) with the result of save(), and sets $save to false.
      *
      * @return callable the previous callback wrapper
      */
@@ -65,6 +65,13 @@ trait ContractsTrait
             throw new InvalidArgumentException(\sprintf('Argument "$beta" provided to "%s::get()" must be a positive number, %f given.', static::class, $beta));
         }
 
+        $item = $pool->getItem($key);
+        $metadata = $item->getMetadata();
+
+        if ($item->isHit() && \INF !== $beta && (!$metadata || !self::electEarlyRecomputation($item, $metadata, $beta, $this->logger ?? null))) {
+            return $item->get();
+        }
+
         static $setMetadata;
 
         $setMetadata ??= \Closure::bind(
@@ -80,32 +87,39 @@ trait ContractsTrait
             CacheItem::class
         );
 
-        return $this->contractsGet($pool, $key, function (CacheItem $item, bool &$save) use ($pool, $callback, $setMetadata, &$metadata, $key, $beta) {
-            // don't wrap nor save recursive calls
-            if (isset($this->computing[$key])) {
-                $value = $callback($item, $save);
-                $save = false;
+        $save = true;
 
-                return $value;
-            }
+        // don't wrap nor save recursive calls
+        if (isset($this->computing[$key])) {
+            return $item->set($callback($item, $save))->get();
+        }
 
-            $this->computing[$key] = $key;
-            $startTime = microtime(true);
+        $this->computing[$key] = $key;
+        $startTime = microtime(true);
 
-            if (!isset($this->callbackWrapper)) {
-                $this->setCallbackWrapper($this->setCallbackWrapper(null));
-            }
+        if (!isset($this->callbackWrapper)) {
+            $this->setCallbackWrapper($this->setCallbackWrapper(null));
+        }
 
-            try {
-                $value = ($this->callbackWrapper)($callback, $item, $save, $pool, static function (CacheItem $item) use ($setMetadata, $startTime, &$metadata) {
+        try {
+            $value = ($this->callbackWrapper)($callback, $item, $save, $pool, static function (CacheItem $item, ?bool $saved = null) use ($setMetadata, $startTime, &$metadata) {
+                if (null === $saved) {
                     $setMetadata($item, $startTime, $metadata);
-                }, $this->logger ?? null, $beta);
-                $setMetadata($item, $startTime, $metadata);
+                } elseif (!$saved) {
+                    $metadata[CacheItem::METADATA_SAVE_FAILED] = true;
+                }
+            }, $this->logger ?? null, $beta);
+            $setMetadata($item, $startTime, $metadata);
+        } finally {
+            unset($this->computing[$key]);
+        }
 
-                return $value;
-            } finally {
-                unset($this->computing[$key]);
-            }
-        }, $beta, $metadata, $this->logger ?? null);
+        $item->set($value);
+
+        if ($save && !$pool->save($item)) {
+            $metadata[CacheItem::METADATA_SAVE_FAILED] = true;
+        }
+
+        return $item->get();
     }
 }

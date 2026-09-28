@@ -13,6 +13,12 @@ namespace Symfony\Component\Serializer\DependencyInjection;
 
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\Serializer\Attribute\Context;
+use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
+use Symfony\Component\Serializer\Attribute\MaxDepth;
+use Symfony\Component\Serializer\Attribute\SerializedName;
+use Symfony\Component\Serializer\Attribute\SerializedPath;
 use Symfony\Component\Serializer\Exception\MappingException;
 
 /**
@@ -20,11 +26,22 @@ use Symfony\Component\Serializer\Exception\MappingException;
  */
 final class AttributeMetadataPass implements CompilerPassInterface
 {
+    private const MEMBER_ATTRIBUTES = [
+        Context::class,
+        Groups::class,
+        Ignore::class,
+        MaxDepth::class,
+        SerializedName::class,
+        SerializedPath::class,
+    ];
+
     public function process(ContainerBuilder $container): void
     {
         if (!$container->hasDefinition('serializer.mapping.attribute_loader')) {
             return;
         }
+
+        $this->tagClassesWithAttributesOnNonPublicMembers($container);
 
         $resolve = $container->getParameterBag()->resolveValue(...);
         $taggedClasses = [];
@@ -59,6 +76,10 @@ final class AttributeMetadataPass implements CompilerPassInterface
         ksort($discriminatorMapTypes);
         $loader = $container->getDefinition('serializer.mapping.attribute_loader')
             ->setArgument(2, $discriminatorMapTypes);
+
+        if ($container->hasDefinition('property_info.cache_warmer')) {
+            $this->addClassesToPropertyInfoCacheWarmer($container, array_keys($taggedClasses + $discriminatorMapTypes));
+        }
 
         if (!$taggedClasses) {
             return;
@@ -106,5 +127,85 @@ final class AttributeMetadataPass implements CompilerPassInterface
         if (!is_a($source->name, $target->name, true)) {
             throw new MappingException(\sprintf('Class "%s" cannot add a discriminator map type for "%s" because it is not a subtype of it.', $source->name, $target->name));
         }
+    }
+
+    /**
+     * @param class-string[] $classes
+     */
+    private function addClassesToPropertyInfoCacheWarmer(ContainerBuilder $container, array $classes): void
+    {
+        if ($container->hasDefinition('serializer.mapping.chain_loader')) {
+            // the classes mapped by files, collected per loader
+            foreach ($container->getDefinition('serializer.mapping.chain_loader')->getArgument(1) as $mappedClasses) {
+                $classes = array_merge($classes, array_keys($mappedClasses));
+            }
+        }
+
+        $warmer = $container->getDefinition('property_info.cache_warmer');
+        $classes = array_unique(array_merge($warmer->getArgument(1), $classes));
+        sort($classes);
+        $warmer->replaceArgument(1, $classes);
+    }
+
+    /**
+     * Tags the classes that have serialization attributes on non-public members only.
+     *
+     * Attribute autoconfiguration looks at public members only, while the attribute loader reads all of them.
+     */
+    private function tagClassesWithAttributesOnNonPublicMembers(ContainerBuilder $container): void
+    {
+        $autoconfigurators = $container->getAttributeAutoconfigurators();
+
+        if (!$attributes = array_intersect(self::MEMBER_ATTRIBUTES, array_keys($autoconfigurators))) {
+            return;
+        }
+
+        foreach ($container->getDefinitions() as $definition) {
+            if (!$definition->isAutoconfigured()
+                || ($definition->isAbstract() && !$definition->hasTag('container.excluded'))
+                || $definition->hasTag('container.ignore_attributes')
+            ) {
+                continue;
+            }
+
+            // contributing to a discriminator map does not map the attributes of the class itself
+            foreach ($definition->getTag('serializer.attribute_metadata') as $tag) {
+                if (!($tag['discriminator_map_type'] ?? false)) {
+                    continue 2;
+                }
+            }
+
+            if (!$class = $container->getReflectionClass($definition->getClass(), false)) {
+                continue;
+            }
+
+            foreach ($class->getProperties(\ReflectionProperty::IS_PROTECTED | \ReflectionProperty::IS_PRIVATE) as $member) {
+                if (!$member->isStatic() && $this->hasAttribute($member, $attributes)) {
+                    $definition->addTag('serializer.attribute_metadata');
+                    continue 2;
+                }
+            }
+
+            foreach ($class->getMethods(\ReflectionMethod::IS_PROTECTED | \ReflectionMethod::IS_PRIVATE) as $member) {
+                if (!$member->isConstructor() && !$member->isDestructor() && $this->hasAttribute($member, $attributes)) {
+                    $definition->addTag('serializer.attribute_metadata');
+                    continue 2;
+                }
+            }
+        }
+    }
+
+    /**
+     * @param class-string[] $attributes
+     */
+    private function hasAttribute(\ReflectionProperty|\ReflectionMethod $member, array $attributes): bool
+    {
+        foreach ($attributes as $attribute) {
+            if ($member->getAttributes($attribute, \ReflectionAttribute::IS_INSTANCEOF)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

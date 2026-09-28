@@ -18,6 +18,7 @@ require_once __DIR__.'/Fixtures/includes/ProjectExtension.php';
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
+use Psr\Container\ContainerInterface as PsrContainerInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Resource\DirectoryResource;
 use Symfony\Component\Config\Resource\FileResource;
@@ -1136,6 +1137,37 @@ class ContainerBuilderTest extends TestCase
         unset($_ENV['ANOTHER_DUMMY_ENV_VAR']);
     }
 
+    public function testResolveEnvValuesWithEmptyValueBeforeAnotherPlaceholder()
+    {
+        $_ENV['EMPTY_DUMMY_ENV_VAR'] = '';
+        $_ENV['INT_DUMMY_ENV_VAR'] = '123';
+
+        $container = new ContainerBuilder();
+        $container->setParameter('foo', '%env(EMPTY_DUMMY_ENV_VAR)%%env(int:INT_DUMMY_ENV_VAR)%');
+
+        $this->assertSame(123, $container->resolveEnvPlaceholders('%foo%', true));
+
+        unset($_ENV['EMPTY_DUMMY_ENV_VAR'], $_ENV['INT_DUMMY_ENV_VAR']);
+    }
+
+    public function testResolveEnvPlaceholdersInStringWithManyPlaceholders()
+    {
+        $bag = new EnvPlaceholderParameterBag();
+        $foo = $bag->get('env(FOO)');
+        $bar = $bag->get('env(json:BAR)');
+        $baz = $bag->get('env(BAZ)');
+        $container = new ContainerBuilder($bag);
+
+        // the lowercased placeholder of FOO is replaced because FOO is used as is, the uppercased one of BAZ is not
+        $value = \sprintf('<a>%s</a><b>%s %1$s</b><c>%s</c><d>%s</d>', $foo, $bar, strtolower($foo), strtoupper($baz));
+
+        $usedEnvs = [];
+        $this->assertSame(\sprintf('<a>%%env(FOO)%%</a><b>%%env(json:BAR)%% %%env(FOO)%%</b><c>%%env(FOO)%%</c><d>%s</d>', strtoupper($baz)), $container->resolveEnvPlaceholders($value, null, $usedEnvs));
+        $this->assertSame(['FOO' => 'FOO', 'json:BAR' => 'json:BAR'], $usedEnvs);
+        $this->assertSame(\sprintf('<a>{FOO}</a><b>{json:BAR} {FOO}</b><c>{FOO}</c><d>%s</d>', strtoupper($baz)), $container->resolveEnvPlaceholders($value, '{%s}'));
+        $this->assertSame(['FOO' => 2, 'json:BAR' => 2, 'BAZ' => 0], $container->getEnvCounters());
+    }
+
     public function testCompileWithResolveEnv()
     {
         putenv('DUMMY_ENV_VAR=du%%y');
@@ -1569,6 +1601,30 @@ class ContainerBuilderTest extends TestCase
         }
 
         $this->assertEquals([$a, $b, $c], $resources, '->getResources() returns an array of resources read for the current configuration');
+    }
+
+    public function testVendorPathsAreTrackedByTheInstalledJsonFile()
+    {
+        $vendorFile = (new \ReflectionClass(PsrContainerInterface::class))->getFileName();
+        $vendorDir = \dirname($vendorFile, 4);
+        $installedJson = new FileResource($vendorDir.'/composer/installed.json');
+        $vendorRootFile = new FileResource($vendorDir.'/autoload.php');
+
+        $container = new ContainerBuilder();
+
+        foreach ([1, 2] as $round) {
+            $container->setResources([]);
+
+            $this->assertSame(PsrContainerInterface::class, $container->getReflectionClass(PsrContainerInterface::class)->name);
+            $this->assertTrue($container->fileExists($vendorFile));
+            $this->assertTrue($container->fileExists((string) $installedJson));
+            $this->assertTrue($container->fileExists(\dirname($vendorFile)));
+            $this->assertFalse($container->fileExists(\dirname($vendorFile).'/Missing'.$round.'.php'));
+            $this->assertTrue($container->fileExists((string) $vendorRootFile));
+            $container->addResource(new FileResource($vendorFile));
+
+            $this->assertEquals([$installedJson, $vendorRootFile], $container->getResources());
+        }
     }
 
     public function testExtension()

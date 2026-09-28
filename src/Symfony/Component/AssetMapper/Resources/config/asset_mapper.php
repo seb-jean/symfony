@@ -92,6 +92,7 @@ return static function (ContainerConfigurator $container) {
             ->args([
                 abstract_arg('metadata directory'),
                 param('kernel.debug'),
+                service('cache.asset_mapper')->nullOnInvalid(),
             ])
 
         ->set('asset_mapper.asset_package', MapperAwareAssetPackage::class)
@@ -118,7 +119,6 @@ return static function (ContainerConfigurator $container) {
                 abstract_arg('asset public prefix'),
                 abstract_arg('extensions map'),
                 service('cache.asset_mapper')->nullOnInvalid(),
-                service('profiler')->nullOnInvalid(),
             ])
             ->tag('kernel.event_subscriber')
 

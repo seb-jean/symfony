@@ -13,8 +13,10 @@ namespace Symfony\Component\DependencyInjection\Tests\Kernel;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Exception\EnvNotFoundException;
 use Symfony\Component\DependencyInjection\Kernel\AbstractKernel;
 use Symfony\Component\DependencyInjection\Kernel\KernelTrait;
+use Symfony\Component\DependencyInjection\Kernel\ServicesBundle;
 
 class KernelTest extends TestCase
 {
@@ -79,6 +81,81 @@ class KernelTest extends TestCase
 
         $this->assertEmpty(glob($kernel->getBuildDir().'/*Compiler.log'));
     }
+
+    public function testDumpContainerWritesContainerDirectory()
+    {
+        $kernel = new TestKernel($this->projectDir);
+        $kernel->boot();
+
+        $containerDirs = glob($kernel->getBuildDir().'/*', \GLOB_ONLYDIR);
+
+        $this->assertCount(1, $containerDirs);
+        $this->assertSame(strstr($kernel->getContainer()::class, '\\', true), basename($containerDirs[0]));
+        $this->assertFileExists($containerDirs[0].'/'.$kernel->getContainer()->getParameter('kernel.container_class').'.php');
+
+        if ('\\' !== \DIRECTORY_SEPARATOR) {
+            $this->assertSame(0o777 & ~umask(), fileperms($containerDirs[0]) & 0o777);
+
+            foreach (glob($containerDirs[0].'/*') as $file) {
+                $this->assertSame(0o666 & ~umask(), fileperms($file) & 0o777);
+            }
+        }
+    }
+
+    public function testDumpContainerReusesExistingContainerDirectory()
+    {
+        $kernel = new TestKernel($this->projectDir);
+        $kernel->boot();
+
+        $buildDir = $kernel->getBuildDir();
+        $class = $kernel->getContainer()->getParameter('kernel.container_class');
+        [$containerDir] = glob($buildDir.'/Container*', \GLOB_ONLYDIR);
+        $mtime = time() - 3600;
+        foreach (glob($containerDir.'/*') as $file) {
+            touch($file, $mtime);
+        }
+        unlink($buildDir.'/'.$class.'.php');
+
+        (new TestKernel($this->projectDir))->boot();
+
+        $this->assertSame([$containerDir], glob($buildDir.'/*', \GLOB_ONLYDIR));
+
+        clearstatcache();
+        $this->assertGreaterThan($mtime, filemtime($containerDir.'/'.$class.'.php'));
+        $this->assertSame($mtime, filemtime($containerDir.'/getPublicServiceService.php'));
+    }
+
+    public function testDumpContainerRestoresMissingFilesInExistingContainerDirectory()
+    {
+        $kernel = new TestKernel($this->projectDir);
+        $kernel->boot();
+
+        $buildDir = $kernel->getBuildDir();
+        $class = $kernel->getContainer()->getParameter('kernel.container_class');
+        [$containerDir] = glob($buildDir.'/Container*', \GLOB_ONLYDIR);
+        $code = file_get_contents($containerDir.'/'.$class.'.php');
+        unlink($containerDir.'/'.$class.'.php');
+        unlink($buildDir.'/'.$class.'.php');
+
+        (new TestKernel($this->projectDir))->boot();
+
+        $this->assertStringEqualsFile($containerDir.'/'.$class.'.php', $code);
+    }
+
+    public function testDumpContainerPreloadsEnvNotFoundException()
+    {
+        mkdir($this->projectDir.'/config', 0o777, true);
+        file_put_contents($this->projectDir.'/config/bundles.php', '<?php return '.var_export([ServicesBundle::class => ['all' => true]], true).';');
+
+        $kernel = new TestKernel($this->projectDir);
+        $kernel->boot();
+
+        $class = $kernel->getContainer()->getParameter('kernel.container_class');
+        $preloadFile = $kernel->getBuildDir().'/'.$class.'.preload.php';
+
+        $this->assertFileExists($preloadFile);
+        $this->assertStringContainsString(EnvNotFoundException::class, file_get_contents($preloadFile));
+    }
 }
 
 class TestKernel extends AbstractKernel
@@ -103,6 +180,7 @@ class TestKernel extends AbstractKernel
     protected function build(ContainerBuilder $container): void
     {
         $container->register('unused_service', \stdClass::class);
+        $container->register('public_service', \stdClass::class)->setPublic(true);
     }
 }
 

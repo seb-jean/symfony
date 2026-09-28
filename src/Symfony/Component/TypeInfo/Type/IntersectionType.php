@@ -80,6 +80,33 @@ final class IntersectionType extends Type implements CompositeTypeInterface
         return true;
     }
 
+    public function accepts(mixed $value): bool
+    {
+        foreach ($this->types as $type) {
+            if (!$type->accepts($value)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param-immediately-invoked-callable $mapper
+     */
+    public function map(callable $mapper): Type
+    {
+        $types = array_map(static fn (Type $t): Type => $t->map($mapper), $this->types);
+
+        if ($types === $this->types) {
+            return $mapper($this);
+        }
+
+        $types = array_values(array_unique($types));
+
+        return $mapper(1 === \count($types) ? $types[0] : Type::intersection(...$types));
+    }
+
     public function __toString(): string
     {
         $string = '';

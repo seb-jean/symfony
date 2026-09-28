@@ -14,6 +14,7 @@ namespace Symfony\Component\Serializer\Tests\Normalizer;
 use PHPStan\PhpDocParser\Parser\PhpDocParser;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\PropertyAccess\Exception\InvalidTypeException;
 use Symfony\Component\PropertyAccess\PropertyAccessorBuilder;
@@ -28,8 +29,10 @@ use Symfony\Component\PropertyInfo\PropertyTypeExtractorInterface;
 use Symfony\Component\Serializer\Attribute\DiscriminatorMap;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Serializer\Exception\ExtraAttributesException;
 use Symfony\Component\Serializer\Exception\LogicException;
+use Symfony\Component\Serializer\Exception\MissingConstructorArgumentsException;
 use Symfony\Component\Serializer\Exception\NotNormalizableValueException;
 use Symfony\Component\Serializer\Exception\PartialDenormalizationException;
 use Symfony\Component\Serializer\Exception\RuntimeException;
@@ -1575,6 +1578,50 @@ class ObjectNormalizerTest extends TestCase
         $this->assertInstanceOf(DiscriminatorDummyTypeA::class, $obj);
     }
 
+    public function testDiscriminatorTypePropertyRenamedByNameConverter()
+    {
+        $classMetadataFactory = new ClassMetadataFactory(new AttributeLoader());
+        $discriminator = new ClassDiscriminatorFromClassMetadata($classMetadataFactory);
+        $serializer = new Serializer([new ObjectNormalizer($classMetadataFactory, new CamelCaseToSnakeCaseNameConverter(), null, null, $discriminator)]);
+
+        $object = new CamelCaseDiscriminatorDummyTypeA();
+        $object->someValue = 'foo';
+
+        $data = $serializer->normalize($object);
+        $this->assertSame(['object_type' => 'type_a', 'some_value' => 'foo'], $data);
+
+        $this->assertEquals($object, $serializer->denormalize($data, CamelCaseDiscriminatorDummy::class));
+        $this->assertEquals($object, $serializer->denormalize($data, CamelCaseDiscriminatorDummy::class, null, [AbstractNormalizer::ALLOW_EXTRA_ATTRIBUTES => false]));
+    }
+
+    #[Group('legacy')]
+    #[IgnoreDeprecations]
+    public function testDiscriminatorTypePropertyFromItsPhpName()
+    {
+        $classMetadataFactory = new ClassMetadataFactory(new AttributeLoader());
+        $discriminator = new ClassDiscriminatorFromClassMetadata($classMetadataFactory);
+        $serializer = new Serializer([new ObjectNormalizer($classMetadataFactory, new CamelCaseToSnakeCaseNameConverter(), null, null, $discriminator)]);
+
+        $object = new CamelCaseDiscriminatorDummyTypeA();
+        $object->someValue = 'foo';
+
+        $this->expectUserDeprecationMessage('Since symfony/serializer 8.2: Denormalizing the "objectType" property of class "Symfony\Component\Serializer\Tests\Normalizer\CamelCaseDiscriminatorDummyTypeA" from its PHP name is deprecated and the key will be ignored in 9.0, use the "object_type" key instead.');
+
+        $this->assertEquals($object, $serializer->denormalize(['objectType' => 'type_a', 'some_value' => 'foo'], CamelCaseDiscriminatorDummy::class));
+    }
+
+    public function testDiscriminatorTypePropertyWithSerializedName()
+    {
+        $classMetadataFactory = new ClassMetadataFactory(new AttributeLoader());
+        $discriminator = new ClassDiscriminatorFromClassMetadata($classMetadataFactory);
+        $serializer = new Serializer([new ObjectNormalizer($classMetadataFactory, new MetadataAwareNameConverter($classMetadataFactory), null, null, $discriminator)]);
+
+        $data = $serializer->normalize(new SerializedNameDiscriminatorDummyTypeA());
+        $this->assertSame(['@kind' => 'type_a'], $data);
+
+        $this->assertInstanceOf(SerializedNameDiscriminatorDummyTypeA::class, $serializer->denormalize($data, SerializedNameDiscriminatorDummy::class));
+    }
+
     public function testNameConverterWithWrongCaseAndAllowExtraAttributesFalse()
     {
         $classMetadataFactory = new ClassMetadataFactory(new AttributeLoader());
@@ -1598,10 +1645,40 @@ class ObjectNormalizerTest extends TestCase
         );
     }
 
+    public function testNameConverterDoesNotDeprecateRawKeysThatAreNotDenormalized()
+    {
+        $classMetadataFactory = new ClassMetadataFactory(new AttributeLoader());
+        $normalizer = new ObjectNormalizer($classMetadataFactory, new CamelCaseToSnakeCaseNameConverter());
+
+        $result = $normalizer->denormalize(['some_camel_case_property' => 1, 'otherCamelCaseProperty' => 2, 'ignoredCamelCaseProperty' => 3, 'unknownCamelCaseProperty' => 4], NameConverterRawKeyDummy::class, null, ['groups' => ['a']]);
+
+        $this->assertSame(1, $result->someCamelCaseProperty);
+        $this->assertSame(0, $result->otherCamelCaseProperty);
+        $this->assertSame(0, $result->ignoredCamelCaseProperty);
+    }
+
+    #[Group('legacy')]
+    #[IgnoreDeprecations]
+    public function testNameConverterWithRawKeyIsDeprecated()
+    {
+        $classMetadataFactory = new ClassMetadataFactory(new AttributeLoader());
+        $normalizer = new ObjectNormalizer($classMetadataFactory, new CamelCaseToSnakeCaseNameConverter());
+
+        $this->expectUserDeprecationMessage('Since symfony/serializer 8.2: Denormalizing the "someCamelCaseProperty" property of class "Symfony\Component\Serializer\Tests\Normalizer\NameConverterRawKeyDummy" from its PHP name is deprecated and the key will be ignored in 9.0, use the "some_camel_case_property" key instead.');
+
+        $result = $normalizer->denormalize(['someCamelCaseProperty' => 1], NameConverterRawKeyDummy::class, null, ['groups' => ['a']]);
+
+        $this->assertSame(1, $result->someCamelCaseProperty);
+    }
+
+    #[Group('legacy')]
+    #[IgnoreDeprecations]
     public function testNameConverterWithWrongCaseAndAllowExtraAttributesTrue()
     {
         $classMetadataFactory = new ClassMetadataFactory(new AttributeLoader());
         $normalizer = new ObjectNormalizer($classMetadataFactory, new CamelCaseToSnakeCaseNameConverter());
+
+        $this->expectUserDeprecationMessage('Since symfony/serializer 8.2: Denormalizing the "someCamelCaseProperty" property of class "Symfony\Component\Serializer\Tests\Normalizer\NameConverterTestDummy" from its PHP name is deprecated and the key will be ignored in 9.0, use the "some_camel_case_property" key instead.');
 
         $result = $normalizer->denormalize(
             ['someCamelCaseProperty' => 999],
@@ -1755,6 +1832,35 @@ class ObjectNormalizerTest extends TestCase
         $this->assertInstanceOf(DiscriminatorWithIgnoredAttribute::class, $denormalized);
         $this->assertSame('FOO', $denormalized->foo);
         $this->assertSame('hidden', $denormalized->hidden);
+    }
+
+    public function testDenormalizeReadonlyConstructorParameters()
+    {
+        $normalizer = new ObjectNormalizer(new ClassMetadataFactory(new AttributeLoader()));
+
+        $denormalized = $normalizer->denormalize(['foo' => 'FOO', 'bar' => 'BAR'], ReadonlyConstructorDummy::class, null, ['allow_extra_attributes' => false]);
+
+        $this->assertSame('FOO', $denormalized->foo);
+        $this->assertSame('BAR', $denormalized->bar);
+    }
+
+    public function testDenormalizeReadonlyConstructorParametersWithConstructorExtractionDisabled()
+    {
+        $normalizer = new ObjectNormalizer(new ClassMetadataFactory(new AttributeLoader()));
+
+        $this->expectException(MissingConstructorArgumentsException::class);
+
+        $normalizer->denormalize(['foo' => 'FOO', 'bar' => 'BAR'], ReadonlyConstructorDummy::class, null, ['enable_constructor_extraction' => false]);
+    }
+
+    public function testDenormalizeReadonlyPropertyNotInTheConstructorOfTheChildClass()
+    {
+        $normalizer = new ObjectNormalizer(new ClassMetadataFactory(new AttributeLoader()));
+
+        $this->expectException(ExtraAttributesException::class);
+        $this->expectExceptionMessage('Extra attributes are not allowed ("foo" is unknown).');
+
+        $normalizer->denormalize(['foo' => 'FOO', 'baz' => 'BAZ'], ReadonlyConstructorChildDummy::class, null, ['allow_extra_attributes' => false]);
     }
 }
 
@@ -2143,6 +2249,27 @@ class DiscriminatorDummyTypeB implements DiscriminatorDummyInterface
 {
 }
 
+#[DiscriminatorMap(typeProperty: 'objectType', mapping: ['type_a' => CamelCaseDiscriminatorDummyTypeA::class])]
+abstract class CamelCaseDiscriminatorDummy
+{
+    public ?string $someValue = null;
+}
+
+class CamelCaseDiscriminatorDummyTypeA extends CamelCaseDiscriminatorDummy
+{
+}
+
+#[DiscriminatorMap(typeProperty: 'kind', mapping: ['type_a' => SerializedNameDiscriminatorDummyTypeA::class])]
+abstract class SerializedNameDiscriminatorDummy
+{
+    #[SerializedName('@kind')]
+    public string $kind = 'type_a';
+}
+
+class SerializedNameDiscriminatorDummyTypeA extends SerializedNameDiscriminatorDummy
+{
+}
+
 class ObjectWithPropertyAndAllAccessorMethods
 {
     public function __construct(
@@ -2424,6 +2551,18 @@ class NameConverterTestDummy
     }
 }
 
+class NameConverterRawKeyDummy
+{
+    #[Groups(['a'])]
+    public int $someCamelCaseProperty = 0;
+
+    #[Groups(['b'])]
+    public int $otherCamelCaseProperty = 0;
+
+    #[Ignore]
+    public int $ignoredCamelCaseProperty = 0;
+}
+
 class NameConverterTestDummyMultiple
 {
     public function __construct(
@@ -2569,4 +2708,25 @@ class DiscriminatorWithIgnoredAttribute
 class DiscriminatorWithoutIgnoredAttribute
 {
     public string $bar = 'bar';
+}
+
+class ReadonlyConstructorDummy
+{
+    public readonly string $bar;
+
+    public function __construct(
+        public readonly string $foo,
+        string $bar = 'bar',
+    ) {
+        $this->bar = $bar;
+    }
+}
+
+class ReadonlyConstructorChildDummy extends ReadonlyConstructorDummy
+{
+    public function __construct(
+        public readonly string $baz,
+    ) {
+        parent::__construct('parent');
+    }
 }

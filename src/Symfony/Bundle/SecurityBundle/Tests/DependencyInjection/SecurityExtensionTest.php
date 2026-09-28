@@ -36,6 +36,7 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestMatcher\PathRequestMatcher;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Ldap\Ldap;
 use Symfony\Component\Ldap\Security\CheckLdapCredentialsListener;
 use Symfony\Component\PasswordHasher\PasswordHasherInterface;
@@ -1374,6 +1375,44 @@ class SecurityExtensionTest extends TestCase
         $this->assertTrue($container->has('security.listener.session.'.$firewallId));
     }
 
+    public function testFirewallsSharingAContextDispatchOnTheirOwnEventDispatcher()
+    {
+        $container = $this->getRawContainer();
+
+        $container->loadFromExtension('security', [
+            'firewalls' => [
+                'admin' => [
+                    'pattern' => '^/admin',
+                    'context' => 'shared',
+                    'http_basic' => true,
+                ],
+                'main' => [
+                    'pattern' => '/.*',
+                    'context' => 'shared',
+                    'http_basic' => true,
+                ],
+            ],
+        ]);
+
+        $container->compile();
+
+        $responseListeners = 0;
+        foreach (['admin', 'main'] as $firewallName) {
+            $listeners = $container->getDefinition('security.firewall.map.context.'.$firewallName)->getArgument(0)->getValues();
+            $contextListeners = array_values(array_filter(array_map('strval', $listeners), static fn ($id) => str_starts_with($id, 'security.context_listener.')));
+            $this->assertCount(1, $contextListeners);
+
+            $contextListener = $container->getDefinition($contextListeners[0]);
+            $this->assertEquals(new Reference('security.event_dispatcher.'.$firewallName), $contextListener->getArgument(4));
+
+            foreach ($contextListener->getTag('kernel.event_listener') as $tag) {
+                $responseListeners += KernelEvents::RESPONSE === $tag['event'] ? 1 : 0;
+            }
+        }
+
+        $this->assertSame(1, $responseListeners);
+    }
+
     #[DataProvider('provideUserCheckerConfig')]
     public function testUserCheckerWithAuthenticatorManager(array $config, string $expectedUserCheckerClass)
     {
@@ -1669,6 +1708,33 @@ class SecurityExtensionTest extends TestCase
         $securityHelperAuthenticatorLocator = $container->getDefinition($container->getDefinition('security.helper')->getArgument(1)['main']);
         $this->assertArrayHasKey(TestAuthenticator::class, $authenticatorMap = $securityHelperAuthenticatorLocator->getArgument(0), 'When programmatically authenticating a user, authenticators’ name must be their original ID.');
         $this->assertSame(TestAuthenticator::class, (string) $authenticatorMap[TestAuthenticator::class]->getValues()[0], 'When programmatically authenticating a user, original authenticators must be used.');
+    }
+
+    #[DataProvider('provideServicesOnlyNeededToAuthenticate')]
+    public function testServicesOnlyNeededToAuthenticateAreLazy(array $authenticator, string $serviceId)
+    {
+        $container = $this->getRawContainer();
+        $container->register('cache.app', \stdClass::class);
+        $container->register('app.token_provider', \stdClass::class);
+        $container->register('app.success_handler', \stdClass::class);
+        $container->register('app.failure_handler', \stdClass::class);
+        $container->loadFromExtension('security', [
+            'providers' => ['default' => ['memory' => null]],
+            'firewalls' => ['main' => $authenticator],
+        ]);
+
+        $container->compile();
+
+        $this->assertTrue($container->getDefinition($serviceId)->isLazy());
+    }
+
+    public static function provideServicesOnlyNeededToAuthenticate(): iterable
+    {
+        yield 'remember-me handler' => [['remember_me' => ['secret' => 'key']], 'security.authenticator.remember_me_handler.main'];
+        yield 'persistent remember-me handler' => [['remember_me' => ['secret' => 'key', 'token_provider' => 'app.token_provider']], 'security.authenticator.remember_me_handler.main'];
+        yield 'login link handler' => [['login_link' => ['check_route' => 'login_check', 'signature_properties' => ['id']]], 'security.authenticator.login_link_handler.main'];
+        yield 'custom success handler' => [['form_login' => ['success_handler' => 'app.success_handler']], 'security.authentication.success_handler.main.form_login'];
+        yield 'custom failure handler' => [['form_login' => ['failure_handler' => 'app.failure_handler']], 'security.authentication.failure_handler.main.form_login'];
     }
 
     public function testOidcLoginAcceptsEnvironmentVariables()

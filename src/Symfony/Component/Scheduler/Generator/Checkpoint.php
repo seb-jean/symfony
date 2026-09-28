@@ -13,7 +13,9 @@ namespace Symfony\Component\Scheduler\Generator;
 
 use Psr\Cache\CacheItemInterface;
 use Symfony\Component\Lock\LockInterface;
+use Symfony\Component\Scheduler\Exception\RuntimeException;
 use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 final class Checkpoint implements CheckpointInterface
 {
@@ -79,11 +81,22 @@ final class Checkpoint implements CheckpointInterface
         $this->index = $index;
         $this->from ??= $time;
         $from = $this->from;
-        $this->cache?->get($this->name, static function (CacheItemInterface $item) use ($time, $index, $from) {
+
+        if (!$this->cache) {
+            return;
+        }
+
+        $this->cache->get($this->name, static function (CacheItemInterface $item) use ($time, $index, $from) {
             $item->expiresAfter(self::CACHE_EXPIRY);
 
             return [$time, $index, $from];
-        }, \INF);
+        }, \INF, $metadata);
+
+        // Cache pools report backend failures only through the metadata of get().
+        // Going on would load the default state on every tick and skip all runs, or dispatch runs again after a restart.
+        if (isset($metadata[ItemInterface::METADATA_SAVE_FAILED])) {
+            throw new RuntimeException(\sprintf('Failed to save the "%s" scheduler checkpoint, the cache backend may be unavailable.', $this->name));
+        }
     }
 
     /**
